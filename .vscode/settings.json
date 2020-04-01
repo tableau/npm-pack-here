@@ -1,0 +1,23 @@
+{
+  "editor.codeActionsOnSave": {
+    "source.fixAll.tslint": true
+  },
+  "editor.detectIndentation": false,
+  "editor.insertSpaces": true,
+  "editor.tabSize": 2,
+  "editor.trimAutoWhitespace": true,
+  "files.eol": "\n",
+  "files.exclude": {
+    "**/.git": true,
+  },
+  "files.insertFinalNewline": true,
+  "files.trimTrailingWhitespace": true,
+  "json.format.enable": true,
+  "search.exclude": {
+    "**/node_modules": true,
+    "coverage": true,
+    "lib": true,
+  },
+  "tslint.autoFixOnSave": true,
+  "typescript.tsdk": "node_modules/typescript/lib"
+}

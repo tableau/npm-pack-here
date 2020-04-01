@@ -1,0 +1,7 @@
+# git will treat all files as text files, line-endings are always normalized to LF
+* text eol=lf
+
+# these files are binary
+*.ico binary
+*.jar binary
+*.png binary
