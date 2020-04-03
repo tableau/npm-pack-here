@@ -1,0 +1,11 @@
+coverage/
+dist/
+lib/
+logs/
+node_modules/
+tmp/
+yarn-error.log
+.vscode/chrome/
+build/
+.gradle/
+.nyc_output/

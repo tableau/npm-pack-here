@@ -1,0 +1,76 @@
+{
+  "name": "npm-pack-here",
+  "description": "An alternative to the Yarn link and NPM link workflows, this tool packs a local NPM project and puts the packed contents into the given destination directories.",
+  "repository": "https://github.com/tableau/npm-pack-here.git",
+  "version": "1.0.0",
+  "bin": {
+    "npm-pack-here": "./lib/src/cli.js"
+  },
+  "engines" : { "node" : ">=9.11.2" },
+  "main": "./lib/src/index.js",
+  "typings": "./lib/src/index.d.ts",
+  "license": "MIT",
+  "scripts": {
+    "build": "yarn run yarn-install && run-s compile check :mark-cli-as-executable :coverage",
+    "build-fast": "npm-run-all -p :compile:ts check -s :coverage",
+    "check": "run-s :tslint",
+    "clean": "run-p \":clean:**\"",
+    "compile": "run-s clean :compile:ts",
+    "compile-watch": "npm-run-all -s compile -p :watch:compile",
+    "coverage": "run-s compile :coverage",
+    "self": "node ./lib/src/cli.js",
+    "test": "run-s compile :test",
+    "test-watch": "npm-run-all -s compile -p :watch:*",
+    "tslint-fix": "run-p \":tslint:* --fix\"",
+    "yarn-install": "yarn install --frozen-lockfile --mutex network",
+    ":clean:compile": "rimraf ./lib",
+    ":clean:coverage": "rimraf ./coverage ./.nyc_output",
+    ":coverage": "nyc npm run :test",
+    ":compile:ts": "tsc -b",
+    ":mark-cli-as-executable": "node ./scripts/mark-cli-as-executable.js",
+    ":test": "jasmine \"./lib/**/*.test.js\"",
+    ":tslint": "run-p \":tslint:*\"",
+    ":tslint:src": "tslint -p ./src \"./src/**/*\"",
+    ":tslint:test": "tslint -p ./test \"./test/**/*\"",
+    ":watch:compile": "run-p \":compile:ts --watch\"",
+    ":watch:test": "chokidar \"./lib/**/*.js\" -c \"npm run :test\""
+  },
+  "dependencies": {
+    "chalk": "^2.4.2",
+    "chokidar": "^3.3.0",
+    "fp-ts": "^1.17.0",
+    "fs-extra": "^8.0.1",
+    "micromatch": "^4.0.1",
+    "npm-packlist": "^1.4.1",
+    "yargs": "^13.2.2"
+  },
+  "devDependencies": {
+    "@types/fs-extra": "^7.0.0",
+    "@types/jasmine": "^3.3.12",
+    "@types/micromatch": "^3.1.0",
+    "@types/node": "^11.13.6",
+    "@types/npm-packlist": "^1.1.1",
+    "@types/tmp": "^0.1.0",
+    "@types/yargs": "^13.0.0",
+    "chokidar-cli": "^2.1.0",
+    "jasmine": "^3.4.0",
+    "npm-run-all": "^4.1.5",
+    "nyc": "13.3.0",
+    "prettier": "^1.17.0",
+    "rimraf": "^2.6.3",
+    "tmp": "^0.1.0",
+    "tslint": "^5.16.0",
+    "tslint-config-prettier": "^1.18.0",
+    "tslint-plugin-prettier": "^2.0.1",
+    "typescript": "^3.4.4"
+  },
+  "nyc": {
+    "include": [
+      "lib/src/**/*.js"
+    ],
+    "reporter": [
+      "html",
+      "text-summary"
+    ]
+  }
+}

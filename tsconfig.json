@@ -1,0 +1,11 @@
+{
+  "references": [
+    {
+      "path": "./src"
+    },
+    {
+      "path": "./test"
+    }
+  ],
+  "include": []
+}

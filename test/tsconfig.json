@@ -1,0 +1,16 @@
+{
+  "extends": "../config/tsconfig.base",
+  "compilerOptions": {
+    // Redirect output structure to the directory
+    "outDir": "../lib/test",
+  },
+  "include": [
+    "**/*",
+    "../custom-types/**/*"
+  ],
+  "references": [
+    {
+      "path": "../src"
+    }
+  ]
+}

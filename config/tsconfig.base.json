@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "noImplicitAny": true,
+    "noImplicitThis": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitReturns": true,
+    "forceConsistentCasingInFileNames": true,
+    "pretty": true,
+    "skipLibCheck": true,
+    "newLine": "LF",
+    "sourceMap": true,
+    "inlineSources": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strictPropertyInitialization": true,
+    "declaration": true,
+    "declarationMap": true,
+    "composite": true,
+    "target": "es2017",
+    "lib": ["es2017"]
+  }
+}
