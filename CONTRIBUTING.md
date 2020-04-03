@@ -43,7 +43,3 @@ node <path-to-cloned-repository>/lib/src/cli.js
 ```
 
 This should run your locally built version of npm-pack-here and if run with no arguments, it should output the help usage text. For usage instruction check out the [readme](readme.md#Demo).
-
-## Submitting Changes
-
-See the [pull request template](docs/pull_request_template.md) for details.
