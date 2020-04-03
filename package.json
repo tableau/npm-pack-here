@@ -11,7 +11,7 @@
   "typings": "./lib/src/index.d.ts",
   "license": "MIT",
   "scripts": {
-    "build": "yarn run yarn-install && run-s compile check :coverage",
+    "build": "yarn run yarn-install && run-s compile check :mark-cli-as-executable :coverage",
     "build-fast": "npm-run-all -p :compile:ts check -s :coverage",
     "check": "run-s :tslint",
     "clean": "run-p \":clean:**\"",
@@ -27,6 +27,7 @@
     ":clean:coverage": "rimraf ./coverage ./.nyc_output",
     ":coverage": "nyc npm run :test",
     ":compile:ts": "tsc -b",
+    ":mark-cli-as-executable": "node ./scripts/mark-cli-as-executable.js",
     ":test": "jasmine \"./lib/**/*.test.js\"",
     ":tslint": "run-p \":tslint:*\"",
     ":tslint:src": "tslint -p ./src \"./src/**/*\"",
