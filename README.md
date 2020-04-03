@@ -1,8 +1,8 @@
 # npm-pack-here
 
-![Tableau Supported](https://img.shields.io/badge/Support%20Level-Tableau%20Supported-53bd92.svg)
-
 ![npm-pack-here icon](docs/images/npm-pack-here-256.png)
+
+[![Community Supported](https://img.shields.io/badge/Support%20Level-Community%20Supported-457387.svg)](https://www.tableau.com/support/itsupport)
 
 > An alternative to the Yarn link and NPM link workflows, this tool packs a local NPM project and
 > puts the packed contents into the given destination directories.
@@ -311,11 +311,14 @@ target dependencies are also packed into the working directory's `node_modules` 
 
 ## Support
 
-If you encounter any issues using the script or have any questions, please feel free to open an issue.
-If you would like to expand the capabilities of what npm-pack-here does, be warned that we have
-no-intention to try and grow the problem space this tool intends to solve. Also we do not intend for
-this tool to become a proxy for `yarn` or `npm`. While we would be glad to see people build off of
-our work, features requests of this nature for this project will be closed.
+If you encounter any surprising or unexpected behavior using this tool or have any questions, please
+feel free to open an issue. This tool is [Community Supported](https://www.tableau.com/support/itsupport)
+so Tableau Developers will periodically review any open issues.
+
+If you would like to expand the capabilities of what npm-pack-here does, we are open to ideas that
+will not be disruptive to the existing supported workflows. Be warned that we have no plans to grow
+the problem space that this tool intends to solve. Also we do not want for this tool to become a
+proxy for `yarn` or `npm`. We encourage anyone to build off of our work to solve other problems.
 
 ## Contributions
 
