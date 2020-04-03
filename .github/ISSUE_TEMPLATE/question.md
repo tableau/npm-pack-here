@@ -8,7 +8,7 @@ assignees: ''
 ---
 
 <!--
-Hello and thanks for opening an issue! If you have a question feel free to ask it here.
+Hello and thanks for opening an issue! If you have a question feel free to ask it here, although be warned replies might be slow.
 
 Note: Comment blocks like this one are intended as notes for you the issue opener. Feel free to delete them as they are addressed.
 -->
@@ -16,6 +16,8 @@ Note: Comment blocks like this one are intended as notes for you the issue opene
 ## Question
 
 <!--
+Please double check the [readme](readme.md) for this tools documentation, its possible your question might already be answered there.
+
 If this is in context to a problem you are trying to solve, we strongly encourage telling us about the core problem rather then the immediate issue you are running into. Its possible there is an alternative solution you have not considered that will work better for your situation.
 -->
 
