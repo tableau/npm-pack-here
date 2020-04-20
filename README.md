@@ -322,7 +322,7 @@ proxy for `yarn` or `npm`. We encourage anyone to build off of our work to solve
 
 ## Contributions
 
-See [Contributing](contributing.md) for details.
+See [Contributing](CONTRIBUTING.md) for details.
 
 ## Prior Art
 
