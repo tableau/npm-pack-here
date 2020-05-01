@@ -31,7 +31,7 @@ When testing a locally cloned npm project within another locally cloned project 
 [`npm link`](https://docs.npmjs.com/cli/link.html) to setup a folder level symlink to the project
 under test. This has a two unfortunate side effects,
 
-* The testing project only has the single `node_modules` folder symlinked and non-of the other
+* The testing project only has the single `node_modules` folder symlinked and none-of the other
   project dependencies are changed. So if the project under test has changed its dependencies, the
   `node_modules` tree is not updated to reflect that. As a result subtle transitive dependency changes
   (due to different versions being "lifted" by npm/yarn) are not seen until after the project under
