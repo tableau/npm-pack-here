@@ -27,9 +27,8 @@ jobs:
       - if: steps.publish.type != 'none'
         run: |
           echo "Success publishing new version: ${{ steps.publish.version }}"
-        run: |
           echo "Old latest: ${{ steps.publish.old-version }}"
       - if: steps.publish.type == 'none'
         run: |
           echo "Failure publishing new version, no version change from old latest: ${{ steps.publish.old-version }}"
-        run: exit 1
+          exit 1
