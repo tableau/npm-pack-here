@@ -16,6 +16,7 @@ import {
   directoryDescription,
   fileDescription,
   getAllPathsToFilesInDirectory,
+  symlinkDescription,
 } from './temporaryDirectory';
 import { getVirtualLoggerInstance } from './virtualLogger';
 
@@ -515,6 +516,33 @@ describe(`replace directory contents with files`, () => {
     expect(logger.lastMessage()).toMatch(/Unable to remove item.*/);
     expect(removeSpy).toHaveBeenCalledTimes(1);
 
+    done();
+  });
+
+  it(`should throw an error if the source directory is a symlink`, async done => {
+    const sourceDirRoot = 'source';
+    const destinationDirRoot = 'destination';
+    const symlinkDestination = 'symlinkDestination';
+    const pathToTestDirectory = await createTestDirectoryWithContents({
+      [sourceDirRoot]: symlinkDescription(symlinkDestination),
+      [destinationDirRoot]: directoryDescription({}),
+      [symlinkDestination]: directoryDescription({}),
+    });
+    const sourceDirectoryPath = path.join(pathToTestDirectory, sourceDirRoot);
+
+    try {
+      await replaceDirectoryContentsWithFiles(
+        FileSystemAbsolutePath.getInstance(sourceDirectoryPath, fileSystemOperations),
+        [FileSystemAbsolutePath.getInstance(path.join(pathToTestDirectory, destinationDirRoot), fileSystemOperations)],
+        [],
+        getVirtualLoggerInstance()
+      );
+      fail('expected replaceDirectoryContentsWithFiles to throw an error');
+    } catch (error) {
+      expect(error.message).toEqual(
+        `Cannot get items from given path '${sourceDirectoryPath}' because it is a symlink, reading and/or writing to a symlink is not supported.`
+      );
+    }
     done();
   });
 });

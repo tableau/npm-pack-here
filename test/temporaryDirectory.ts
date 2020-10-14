@@ -5,6 +5,7 @@ import { fileSystemOperations } from '../src/fileSystemOperations';
 
 export type FileSystemItemFileType = 'file';
 export type FileSystemItemDirectoryType = 'directory';
+export type FileSystemItemSymlinkType = 'symlink';
 
 export function fileDescription(contents: string, stats?: FileStatistics): FileDescription {
   return {
@@ -36,7 +37,22 @@ export interface DirectoryDescription {
   dirContents: DirectoryContents;
 }
 
-export type FileSystemItemDescription = FileDescription | DirectoryDescription;
+export function symlinkDescription(targetRelativePath: string): SymlinkDescription {
+  if (path.isAbsolute(targetRelativePath)) {
+    throw new Error(`Symlink description requires a relative path, was given an absolute one '${targetRelativePath}'`);
+  }
+  return {
+    type: 'symlink',
+    targetRelativePath: targetRelativePath,
+  };
+}
+
+export interface SymlinkDescription {
+  type: FileSystemItemSymlinkType;
+  targetRelativePath: string;
+}
+
+export type FileSystemItemDescription = FileDescription | DirectoryDescription | SymlinkDescription;
 
 export interface DirectoryContents {
   [name: string]: FileSystemItemDescription | undefined;
@@ -46,6 +62,7 @@ export async function createTestDirectoryWithContents(directoryContents: Directo
   const pathToTmpDir = createTemporaryDirectory();
 
   await fillDirectoryWithContents(directoryContents, pathToTmpDir);
+  await setupSymlinks(directoryContents, pathToTmpDir);
 
   return pathToTmpDir;
 }
@@ -58,7 +75,7 @@ export function createTemporaryDirectory(): string {
   return tempDirName;
 }
 
-export async function fillDirectoryWithContents(directoryContents: DirectoryContents, basePath: string): Promise<void> {
+async function fillDirectoryWithContents(directoryContents: DirectoryContents, basePath: string): Promise<void> {
   await Promise.all(
     Object.keys(directoryContents).map(async itemName => {
       const itemPath = path.join(basePath, itemName);
@@ -72,8 +89,32 @@ export async function fillDirectoryWithContents(directoryContents: DirectoryCont
         return;
       }
 
+      if (itemDescription.type === 'symlink') {
+        return;
+      }
+
       await fileSystemOperations.ensureDirectory(itemPath);
       await fillDirectoryWithContents(itemDescription.dirContents, itemPath);
+    })
+  );
+}
+
+async function setupSymlinks(directoryContents: DirectoryContents, basePath: string): Promise<void> {
+  await Promise.all(
+    Object.keys(directoryContents).map(async itemName => {
+      const itemPath = path.join(basePath, itemName);
+      const itemDescription = directoryContents[itemName] as FileSystemItemDescription;
+
+      if (itemDescription.type === 'file') {
+        return;
+      }
+
+      if (itemDescription.type === 'symlink') {
+        await fileSystemOperations.ensureSymlink(itemPath, path.resolve(basePath, itemDescription.targetRelativePath));
+        return;
+      }
+
+      await setupSymlinks(itemDescription.dirContents, itemPath);
     })
   );
 }
