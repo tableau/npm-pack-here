@@ -545,4 +545,31 @@ describe(`replace directory contents with files`, () => {
     }
     done();
   });
+
+  it(`should throw an error if the destination directory is a symlink`, async done => {
+    const sourceDirRoot = 'source';
+    const destinationDirRoot = 'destination';
+    const symlinkDestination = 'symlinkDestination';
+    const pathToTestDirectory = await createTestDirectoryWithContents({
+      [sourceDirRoot]: directoryDescription({}),
+      [destinationDirRoot]: symlinkDescription(symlinkDestination),
+      [symlinkDestination]: directoryDescription({}),
+    });
+    const destinationDirectoryPath = path.join(pathToTestDirectory, destinationDirRoot);
+
+    try {
+      await replaceDirectoryContentsWithFiles(
+        FileSystemAbsolutePath.getInstance(path.join(pathToTestDirectory, sourceDirRoot), fileSystemOperations),
+        [FileSystemAbsolutePath.getInstance(destinationDirectoryPath, fileSystemOperations)],
+        [],
+        getVirtualLoggerInstance()
+      );
+      fail('expected replaceDirectoryContentsWithFiles to throw an error');
+    } catch (error) {
+      expect(error.message).toEqual(
+        `Cannot get items from given path '${destinationDirectoryPath}' because it is a symlink, reading and/or writing to a symlink is not supported.`
+      );
+    }
+    done();
+  });
 });
