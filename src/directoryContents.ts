@@ -59,9 +59,7 @@ export async function getAllItemsInDirectory(
   const rootDirPathStats = await directoryPath.Stats;
   if (rootDirPathStats.type === 'symlink') {
     throw new Error(
-      `Cannot get items from given path '${directoryPath.AbsolutePath}' because it is a symlink, reading and/or writing to a symlink is not supported.` +
-        `\nNote this is a super common error in the case of running 'npm-pack-here' after` +
-        ` a yarn link or npm link command has been used in the past, try unlinking or deleting '${directoryPath.AbsolutePath}' to resolve this.`
+      `Cannot get items from given path '${directoryPath.AbsolutePath}' because it is a symlink, reading and/or writing to a symlink is not supported.`
     );
   }
   if (rootDirPathStats.type !== 'directory') {

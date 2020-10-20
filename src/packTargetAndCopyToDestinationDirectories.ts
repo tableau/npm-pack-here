@@ -181,6 +181,19 @@ async function tryGetNodeModulesDestinationDirectory(
     })
     .chain(() => {
       return tryGetNodeModulesDirectoryPathForTargetDependency(targetProjectName, workingDirectory, logger);
+    })
+    .map(foundPathToTargetProjectInNodeModules => {
+      const relativePathToFoundPath = path.relative(workingDirectory, foundPathToTargetProjectInNodeModules);
+      if (relativePathToFoundPath.startsWith('..') || path.isAbsolute(relativePathToFoundPath)) {
+        throw new Error(
+          `Tried to find the node_modules location to place packed content for '${targetProjectName}' but instead` +
+            ` found a location '${foundPathToTargetProjectInNodeModules}' not contained within '${workingDirectory}'` +
+            `\nNote: this is a super common error when running 'npm-pack-here' after` +
+            ` yarn link or npm link have been used in the past,` +
+            ` to resolve this try unlinking '${targetProjectName}' from within '${workingDirectory}'.`
+        );
+      }
+      return foundPathToTargetProjectInNodeModules;
     });
 }
 

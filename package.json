@@ -2,7 +2,7 @@
   "name": "npm-pack-here",
   "description": "An alternative to the Yarn link and NPM link workflows, this tool packs a local NPM project and puts the packed contents into the given destination directories.",
   "repository": "https://github.com/tableau/npm-pack-here.git",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "bin": {
     "npm-pack-here": "./lib/src/cli.js"
   },

@@ -44,6 +44,7 @@ export interface FileSystemWriteOperations {
   writeFile(path: string, contents: string): Promise<void>;
   setTimes(itemPath: string, times: ItemTimes): Promise<void>;
   ensureDirectory(dirPath: string): Promise<void>;
+  ensureSymlink(symlinkLocationPath: string, symlinkTargetPath: string): Promise<void>;
 }
 
 export const fileSystemOperations: FileSystemReadOperations & FileSystemWriteOperations = {
@@ -114,5 +115,10 @@ export const fileSystemOperations: FileSystemReadOperations & FileSystemWriteOpe
   },
   ensureDirectory: (dirPath: string): Promise<void> => {
     return fsExtra.ensureDir(dirPath);
+  },
+  ensureSymlink: (symlinkLocationPath: string, symlinkTargetPath: string): Promise<void> => {
+    // https://nodejs.org/api/fs.html#fs_fs_symlink_target_path_type_callback
+    // target of symlink is the first parameter then symlink's actual location
+    return fsExtra.symlink(symlinkTargetPath, symlinkLocationPath);
   },
 };

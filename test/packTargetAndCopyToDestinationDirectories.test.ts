@@ -1,7 +1,7 @@
 import * as fs from 'fs-extra';
 import * as path from 'path';
 import { getPackAndCopyCallsForTargets } from '../src/packTargetAndCopyToDestinationDirectories';
-import { createTestDirectoryWithContents, directoryDescription, fileDescription } from './temporaryDirectory';
+import { createTestDirectoryWithContents, directoryDescription, fileDescription, symlinkDescription } from './temporaryDirectory';
 import { getVirtualLoggerInstance } from './virtualLogger';
 
 describe(`getPackAndCopyCallsForTargets`, () => {
@@ -201,7 +201,7 @@ describe(`getPackAndCopyCallsForTargets`, () => {
         logger,
         absolutePathToWorkingDirectory
       );
-      expect('unreached').toEqual('true');
+      fail('expected getPackAndCopyCallsForTargets to throw an error');
     } catch (error) {
       expect(error).toMatch(/Failed to find expected package.json in.*/);
     }
@@ -224,7 +224,7 @@ describe(`getPackAndCopyCallsForTargets`, () => {
         false /** tryToCopyIntoNodeModulesDirectoryLocatedInCurrentWorkingDirectory */,
         logger
       );
-      expect('unreached').toEqual('true');
+      fail('expected getPackAndCopyCallsForTargets to throw an error');
     } catch (error) {
       expect(error).toMatch(/No npm project at given target location.*/);
     }
@@ -379,9 +379,62 @@ describe(`getPackAndCopyCallsForTargets`, () => {
         false /** tryToCopyIntoNodeModulesDirectoryLocatedInCurrentWorkingDirectory */,
         logger
       );
-      expect('unreached').toEqual('true');
+      fail('expected getPackAndCopyCallsForTargets to throw an error');
     } catch (error) {
       expect(error).toMatch(/multiple targets are trying to pack to destination.*/);
+    }
+
+    done();
+  });
+
+  it(`should throw an error if pack and copy calls occur to a linked node_modules directory`, async done => {
+    const destinationRootDir = 'destination';
+    const targetRootDir = 'target';
+    const pathToTestDirectories = await createTestDirectoryWithContents({
+      [destinationRootDir]: directoryDescription({
+        node_modules: directoryDescription({
+          [targetRootDir]: symlinkDescription(path.join('..', '..', targetRootDir)),
+        }),
+        'package.json': fileDescription(
+          JSON.stringify({
+            name: destinationRootDir,
+            dependencies: {
+              [targetRootDir]: `file:local_modules/${targetRootDir}`,
+            },
+          })
+        ),
+      }),
+      [targetRootDir]: directoryDescription({
+        'package.json': fileDescription(
+          JSON.stringify({
+            name: targetRootDir,
+          })
+        ),
+      }),
+    });
+    const logger = getVirtualLoggerInstance();
+
+    const destinationProjectDirectoryPath = path.resolve(pathToTestDirectories, destinationRootDir);
+    try {
+      await getPackAndCopyCallsForTargets(
+        [path.resolve(pathToTestDirectories, targetRootDir)] /** targetProjectDirectoryPaths */,
+        [] /** directoriesToCopyTo */,
+        true /** tryToCopyIntoNodeModulesDirectoryLocatedInCurrentWorkingDirectory */,
+        logger,
+        destinationProjectDirectoryPath /** workingDirectory */
+      );
+      fail('expected getPackAndCopyCallsForTargets to throw an error');
+    } catch (error) {
+      expect(error.message).toEqual(
+        `Tried to find the node_modules location to place packed content for '${targetRootDir}' but instead` +
+          ` found a location '${path.join(
+            pathToTestDirectories,
+            targetRootDir
+          )}' not contained within '${destinationProjectDirectoryPath}'` +
+          `\nNote: this is a super common error when running 'npm-pack-here' after` +
+          ` yarn link or npm link have been used in the past,` +
+          ` to resolve this try unlinking '${targetRootDir}' from within '${destinationProjectDirectoryPath}'.`
+      );
     }
 
     done();
