@@ -204,7 +204,7 @@ describe(`Next steps cli text`, () => {
       `To get updated changes from target projects, run this command again.\n` +
       `\tnpm-pack-here --target ${escapedTargetProjectPath} ${escapedAnotherTargetProjectPath}\n` +
       `  or watch continually\n` +
-      `\tnpm-pack-here watch --target ${escapedTargetProjectPath} ${escapedAnotherTargetProjectPath}\n$`;
+      `\tnpm-pack-here watch --target ${escapedTargetProjectPath} ${escapedAnotherTargetProjectPath}\n\n$`;
     const outputMatch = new RegExp(outputMatchRegexText);
 
     expect(virtualLoggerLogSpy).toHaveBeenCalled();

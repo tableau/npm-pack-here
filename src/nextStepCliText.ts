@@ -115,15 +115,15 @@ async function outputLocalSetupCommandsIfProjectsNotAlreadyConfiguredAsLocal(
   const hasYarnLock = await doesYarnLockFileExist();
   const isAmbiguous = (hasNpmLock && hasYarnLock) || (!hasNpmLock && !hasYarnLock);
 
-  interface OutputOptions {
-    npm?: boolean;
-    npmOrYarn?: boolean;
-    post?: boolean;
-    yarn?: boolean;
-    [s: string]: boolean | undefined;
+  interface OutputOptions<T> {
+    npm?: T;
+    npmOrYarn?: T;
+    post?: T;
+    yarn?: T;
+    [s: string]: T | undefined;
   }
 
-  let hasOption: OutputOptions = {
+  let shouldEmit: OutputOptions<boolean> = {
     npm: hasNpmLock || isAmbiguous,
     npmOrYarn: isAmbiguous,
     yarn: hasYarnLock || isAmbiguous,
@@ -134,21 +134,6 @@ async function outputLocalSetupCommandsIfProjectsNotAlreadyConfiguredAsLocal(
     path.relative(workingDirectoryAbsolutePath, targetProject.targetProjectAbsolutePath)
   );
 
-  const thisCommand = cliConstants.commandName;
-  const targetArg = cliConstants.targetProjectArg;
-  const watch = cliConstants.watchCommandArg;
-
-  type StringProducer = () => string;
-  type OutputProvider = string | StringProducer | StringProducer[];
-  interface OptionalOutputProvider {
-    npm?: OutputProvider;
-    npmOrYarn?: OutputProvider;
-    post?: OutputProvider;
-    yarn?: OutputProvider;
-    [s: string]: OutputProvider | undefined;
-  }
-  type OutputSpecification = string | OptionalOutputProvider;
-
   const argJoin = (arg: string[]) => {
     return arg.join(' ');
   };
@@ -156,6 +141,14 @@ async function outputLocalSetupCommandsIfProjectsNotAlreadyConfiguredAsLocal(
   const commandForPaths = (command: string, maybePaths: Option<string[]>): string => {
     return maybePaths.fold('', paths => `\t${command} ${argJoin(paths)}\n`);
   };
+
+  const thisCommand = cliConstants.commandName;
+  const targetArg = cliConstants.targetProjectArg;
+  const watch = cliConstants.watchCommandArg;
+
+  type StringProducer = () => string;
+  type OutputProvider = string | StringProducer | StringProducer[];
+  type OutputSpecification = OutputProvider | OutputOptions<OutputProvider>;
 
   const outputSpec: OutputSpecification[] = [
     `
@@ -165,10 +158,7 @@ Set up target projects as local dependencies with `,
     ` using:
 `,
     {
-      npm: [
-        () => commandForPaths('npm install', dependencyPaths),
-        () => commandForPaths('npm install -D', devDependencyPaths),
-      ],
+      npm: [() => commandForPaths('npm install', dependencyPaths), () => commandForPaths('npm install -D', devDependencyPaths)],
       npmOrYarn: '  and/or\n',
       yarn: [
         () => commandForPaths('yarn add', dependencyPaths),
@@ -184,36 +174,31 @@ Set up target projects as local dependencies with `,
 \t${thisCommand} --${targetArg} ${argJoin(targetProjectPaths)}
   or watch continually
 \t${thisCommand} ${watch} --${targetArg} ${argJoin(targetProjectPaths)}
+
 `,
     },
   ];
 
-  const evaluator = (output: string | OptionalOutputProvider): (Option<string> | Option<string>[])[] | Option<string> => {
+  // @ts-ignore noImplicitAny - can't typecheck this recursive return type
+  // Option<string> | (Option<string> | Option<string>[])[] | ...
+  const evaluator = (output?: OutputProvider | OutputOptions<OutputProvider>) => {
     if (typeof output === 'string') {
       return some(output);
-    } else {
+    } else if (typeof output === 'function') {
+      return evaluator(output());
+    } else if (Array.isArray(output)) {
+      return output.map(o => evaluator(o));
+    } else if (output && typeof output === 'object') {
       return Object.keys(output)
         .sort()
-        .map(opt => {
-          if (!hasOption[opt]) {
-            return none;
-          }
-
-          const outputProvider = output[opt];
-          if (outputProvider === undefined) {
-            return none;
-          } else if (typeof outputProvider === 'string') {
-            return some(outputProvider);
-          } else if (Array.isArray(outputProvider)) {
-            return outputProvider.map(o => some(o()));
-          } else {
-            return some(outputProvider());
-          }
-        });
+        .map(opt => (shouldEmit[opt] ? evaluator(output[opt]) : none));
+    } else {
+      return none;
     }
   };
 
-  const evaluated: Option<string>[] = outputSpec.map(evaluator).flat(3);
+  const maxNesting = 3; // OutputOptions<StringProducer[]>[]
+  const evaluated: Option<string>[] = outputSpec.map(evaluator).flat(maxNesting);
   const stringified: string = evaluated.map(getOrElse(() => '')).join('');
 
   return some(stringified);
