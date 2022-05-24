@@ -15,6 +15,7 @@ export async function maybeOutputNextStepsText(
   workingDirectoryAbsolutePath: string,
   doesPackageLockFileExist: () => Promise<boolean>,
   doesYarnLockFileExist: () => Promise<boolean>,
+  doesYarnrcYmlFileExist: () => Promise<boolean>,
   getPackageJsonContents: () => Promise<Option<PackageJsonContent>>
 ): Promise<void> {
   if (maybeDestinationDirectoryToAddDependencyOn === undefined) {
@@ -31,6 +32,7 @@ export async function maybeOutputNextStepsText(
     targetProjects,
     doesPackageLockFileExist,
     doesYarnLockFileExist,
+    doesYarnrcYmlFileExist,
     workingDirectoryAbsolutePath,
     outputPostCommandMessages,
     maybeDestinationDirectoryToAddDependencyOn
@@ -46,6 +48,7 @@ async function outputLocalSetupCommandsIfProjectsNotAlreadyConfiguredAsLocal(
   targetProjects: TargetProjectsNameAndAbsolutePaths,
   doesPackageLockFileExist: () => Promise<boolean>,
   doesYarnLockFileExist: () => Promise<boolean>,
+  doesYarnrcYmlFileExist: () => Promise<boolean>,
   workingDirectoryAbsolutePath: string,
   outputPostCommandMessages: boolean,
   destinationDirectoryToAddDependencyOn: string
@@ -113,20 +116,24 @@ async function outputLocalSetupCommandsIfProjectsNotAlreadyConfiguredAsLocal(
 
   const hasNpmLock = await doesPackageLockFileExist();
   const hasYarnLock = await doesYarnLockFileExist();
-  const isAmbiguous = (hasNpmLock && hasYarnLock) || (!hasNpmLock && !hasYarnLock);
+  const hasYarnrcYml = await doesYarnrcYmlFileExist();
+  const isUnknown = (!hasNpmLock && !hasYarnLock && !hasYarnrcYml);
 
   interface OutputOptions<T> {
     npm?: T;
     npmOrYarn?: T;
     post?: T;
-    yarn?: T;
+    yarnBerry?: T;
+    yarnClassic?: T;
     [s: string]: T | undefined;
   }
 
   let shouldEmit: OutputOptions<boolean> = {
-    npm: hasNpmLock || isAmbiguous,
-    npmOrYarn: isAmbiguous,
-    yarn: hasYarnLock || isAmbiguous,
+    npm: hasNpmLock || isUnknown,
+//    npmOrYarn: (hasNpmLock && (hasYarnLock || hasYarnrcYml)) || isUnknown,
+    npmOrYarn: (hasNpmLock && hasYarnLock) || isUnknown,
+    yarnBerry: hasYarnrcYml,
+    yarnClassic: (hasYarnLock && !hasYarnrcYml) || isUnknown,
     post: outputPostCommandMessages,
   };
 
@@ -154,13 +161,13 @@ async function outputLocalSetupCommandsIfProjectsNotAlreadyConfiguredAsLocal(
     `
 
 Set up target projects as local dependencies with `,
-    { npm: 'npm', npmOrYarn: ' or ', yarn: 'yarn' },
+    { npm: 'npm', npmOrYarn: ' or ', yarnClassic: 'yarn' },
     ` using:
 `,
     {
       npm: [() => commandForPaths('npm install', dependencyPaths), () => commandForPaths('npm install -D', devDependencyPaths)],
       npmOrYarn: '  and/or\n',
-      yarn: [
+      yarnClassic: [
         () => commandForPaths('yarn add', dependencyPaths),
         () => commandForPaths('yarn add -D', devDependencyPaths),
         () => '\tyarn install --check-files\n',

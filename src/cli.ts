@@ -103,6 +103,11 @@ function doesYarnLockFileExist(): Promise<boolean> {
   return fileSystemOperations.pathExists(absolutePathToDestinationProjectYarnLock);
 }
 
+function doesYarnrcYmlFileExist(): Promise<boolean> {
+  const absolutePathToDestinationProjectYarnrcYml = path.resolve('.yarnrc.yml');
+  return fileSystemOperations.pathExists(absolutePathToDestinationProjectYarnrcYml);
+}
+
 async function performFirstPackAndCopyToCallForGivenArguments(
   outputPostCommandMessages: boolean,
   argv: ExpectedArguments
@@ -139,6 +144,7 @@ async function performFirstPackAndCopyToCallForGivenArguments(
     process.cwd(),
     doesPackageLockFileExist,
     doesYarnLockFileExist,
+    doesYarnrcYmlFileExist,
     () => tryGetProjectPackageJsonContent(path.resolve('./'))
   );
 

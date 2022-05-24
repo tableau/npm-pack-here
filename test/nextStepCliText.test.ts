@@ -26,6 +26,7 @@ describe(`Next steps cli text`, () => {
       workingDirectory,
       () => Promise.resolve(false) /** doesPackageLockFileExist */,
       () => Promise.resolve(true) /** doesYarnLockFileExist */,
+      () => Promise.resolve(false) /** doesYarnrcYmlFileExist */,
       () =>
         Promise.resolve(
           some({
@@ -66,6 +67,7 @@ describe(`Next steps cli text`, () => {
       workingDirectory,
       () => Promise.resolve(true) /** doesPackageLockFileExist */,
       () => Promise.resolve(false) /** doesYarnLockFileExist */,
+      () => Promise.resolve(false) /** doesYarnrcYmlFileExist */,
       () =>
         Promise.resolve(
           some({
@@ -100,6 +102,7 @@ describe(`Next steps cli text`, () => {
       workingDirectory,
       () => Promise.resolve(true) /** doesPackageLockFileExist */,
       () => Promise.resolve(true) /** doesYarnLockFileExist */,
+      () => Promise.resolve(false) /** doesYarnrcYmlFileExist */,
       () =>
         Promise.resolve(
           some({
@@ -138,6 +141,7 @@ describe(`Next steps cli text`, () => {
       workingDirectory,
       () => Promise.resolve(false) /** doesPackageLockFileExist */,
       () => Promise.resolve(false) /** doesYarnLockFileExist */,
+      () => Promise.resolve(false) /** doesYarnrcYmlFileExist */,
       () =>
         Promise.resolve(
           some({
@@ -182,6 +186,7 @@ describe(`Next steps cli text`, () => {
       workingDirectory,
       () => Promise.resolve(false) /** doesPackageLockFileExist */,
       () => Promise.resolve(true) /** doesYarnLockFileExist */,
+      () => Promise.resolve(false) /** doesYarnrcYmlFileExist */,
       () =>
         Promise.resolve(
           some({
@@ -227,6 +232,7 @@ describe(`Next steps cli text`, () => {
       workingDirectory,
       () => Promise.resolve(false) /** doesPackageLockFileExist */,
       () => Promise.resolve(true) /** doesYarnLockFileExist */,
+      () => Promise.resolve(false) /** doesYarnrcYmlFileExist */,
       () =>
         Promise.resolve(
           some({
@@ -243,6 +249,42 @@ describe(`Next steps cli text`, () => {
     expect(virtualLoggerLogSpy).toHaveBeenCalled();
     expect(logger.lastMessage()).not.toMatch(outputMatch);
     expect(logger.lastMessage()).toMatch(/.*/);
+
+    done();
+  });
+
+  it(`should not output any yarn commands if yarn 2+ is detected`, async done => {
+    const workingDirectory = 'destination';
+    const targetProject = 'widgets';
+    const anotherTargetProject = 'anotherTargetProject';
+    const logger = getVirtualLoggerInstance();
+    const virtualLoggerLogSpy = spyOn(logger, 'log').and.callThrough();
+
+    await maybeOutputNextStepsText(
+      './local_modules' /* maybeDestinationDirectoryToAddDependencyOn */,
+      [
+        { targetProjectName: targetProject, targetProjectAbsolutePath: targetProject },
+        { targetProjectName: anotherTargetProject, targetProjectAbsolutePath: anotherTargetProject },
+      ],
+      true /* outputPostCommandMessages */,
+      logger,
+      workingDirectory,
+      () => Promise.resolve(false) /** doesPackageLockFileExist */,
+      () => Promise.resolve(true) /** doesYarnLockFileExist */,
+      () => Promise.resolve(true) /** doesYarnrcYmlFileExist */,
+      () =>
+        Promise.resolve(
+          some({
+            dependencies: {
+              [targetProject]: '0.0.0',
+              [anotherTargetProject]: '0.0.0',
+            },
+          })
+        ) /** getPackageJsonContents */
+    );
+
+    expect(virtualLoggerLogSpy).toHaveBeenCalled();
+    expect(logger.lastMessage()).not.toMatch('yarn');
 
     done();
   });
@@ -265,6 +307,7 @@ describe(`Next steps cli text`, () => {
       workingDirectory,
       () => Promise.resolve(false) /** doesPackageLockFileExist */,
       () => Promise.resolve(true) /** doesYarnLockFileExist */,
+      () => Promise.resolve(false) /** doesYarnrcYmlFileExist */,
       () =>
         Promise.resolve(
           some({
@@ -297,6 +340,7 @@ describe(`Next steps cli text`, () => {
       workingDirectory,
       () => Promise.resolve(false) /** doesPackageLockFileExist */,
       () => Promise.resolve(true) /** doesYarnLockFileExist */,
+      () => Promise.resolve(false) /** doesYarnrcYmlFileExist */,
       () =>
         Promise.resolve(
           some({
