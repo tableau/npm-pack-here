@@ -1,14 +1,11 @@
 import { assert } from 'console';
-import { fromNullable, none, Option, some, isSome, getOrElse } from 'fp-ts/lib/Option';
+import { fromNullable, getOrElse, none, Option, some } from 'fp-ts/lib/Option';
 import * as path from 'path';
 import * as cliConstants from './cliConstants';
 import { Logger } from './logger';
 import { PackageJsonContent } from './packageJson';
 
-export type TargetProjectNameAndAbsolutePath = {
-  targetProjectName: string;
-  targetProjectAbsolutePath: string;
-};
+export type TargetProjectNameAndAbsolutePath = { targetProjectName: string; targetProjectAbsolutePath: string };
 export type TargetProjectsNameAndAbsolutePaths = TargetProjectNameAndAbsolutePath[];
 
 export async function maybeOutputNextStepsText(
@@ -131,17 +128,14 @@ async function outputLocalSetupCommandsIfProjectsNotAlreadyConfiguredAsLocal(
         }))
       )
     )
-    .map(({ npm, yarn }) => ({
-      npm,
-      yarn: yarn.concat(['yarn install --check-files']),
-    }));
+    .map(({ npm, yarn }) => ({ npm, yarn: yarn.concat(['yarn install --check-files']) }));
 
   let hasOption: OutputOptions = {
     npm: await doesPackageLockFileExist(),
     yarn: await doesYarnLockFileExist(),
     post: outputPostCommandMessages,
   };
-  hasOption['npmOrYarn'] = hasOption['npm'] || hasOption['yarn'];
+  hasOption.npmOrYarn = hasOption.npm && hasOption.yarn;
 
   const maybeFilesExist = await addCommands.fold<
     Promise<
@@ -199,11 +193,11 @@ async function outputLocalSetupCommandsIfProjectsNotAlreadyConfiguredAsLocal(
   const targetArg = cliConstants.targetProjectArg;
   const watch = cliConstants.watchCommandArg;
 
-  const argJoin = (a: Option<string[]> | string[]) => {
-    if (a instanceof Array) {
-      return a.join(' ');
+  const argJoin = (arg: Option<string[]> | string[]) => {
+    if (arg instanceof Array) {
+      return arg.join(' ');
     } else {
-      return a.fold('', s => s.join(' '));
+      return arg.fold('', s => s.join(' '));
     }
   };
 
@@ -223,21 +217,28 @@ async function outputLocalSetupCommandsIfProjectsNotAlreadyConfiguredAsLocal(
     yarn?: OutputProvider;
     [s: string]: OutputProvider | undefined;
   }
-  type OutputSpecifier = string | OptionalOutputProvider;
+  type OutputSpecification = string | OptionalOutputProvider;
 
-  let a: OutputSpecifier[] = [
+  let a: OutputSpecification[] = [
     `
 
-Set up target projects as local dependencies with `,
+Setup target projects as local dependencies with `,
     { npm: 'npm', npmOrYarn: ' or ', yarn: 'yarn' },
-    ` using:`,
+    ` using:
+`,
     {
-      npm: [() => `npm install ${argJoin(dependencyPaths)}`, () => `npm install -D ${argJoin(devDependencyPaths)}`],
-      npmOrYarn: '\n  and/or\n',
-      yarn: [() => `yarn add ${argJoin(dependencyPaths)}`, () => `yarn add -D ${argJoin(devDependencyPaths)}`],
+      npm: [
+        () => dependencyPaths.fold('', (paths) => `\tnpm install ${argJoin(paths)}\n`),
+        () => devDependencyPaths.fold('', (paths) => `\tnpm install -D ${argJoin(paths)}\n`),
+      ],
+      npmOrYarn: '  and/or\n',
+      yarn: [
+        () => dependencyPaths.fold('', (paths) => `\tyarn add ${argJoin(paths)}\n`),
+        () => devDependencyPaths.fold('', (paths) => `\tyarn add -D ${argJoin(paths)}\n`),
+      ],
     },
     {
-      yarn: 'yarn install --check-files',
+      yarn: '\tyarn install --check-files\n',
     },
     `
 
