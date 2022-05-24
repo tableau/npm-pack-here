@@ -1,10 +1,14 @@
-import { fromNullable, none, Option, some } from 'fp-ts/lib/Option';
+import { assert } from 'console';
+import { fromNullable, none, Option, some, isSome, getOrElse } from 'fp-ts/lib/Option';
 import * as path from 'path';
 import * as cliConstants from './cliConstants';
 import { Logger } from './logger';
 import { PackageJsonContent } from './packageJson';
 
-export type TargetProjectNameAndAbsolutePath = { targetProjectName: string; targetProjectAbsolutePath: string };
+export type TargetProjectNameAndAbsolutePath = {
+  targetProjectName: string;
+  targetProjectAbsolutePath: string;
+};
 export type TargetProjectsNameAndAbsolutePaths = TargetProjectNameAndAbsolutePath[];
 
 export async function maybeOutputNextStepsText(
@@ -104,13 +108,19 @@ async function outputLocalSetupCommandsIfProjectsNotAlreadyConfiguredAsLocal(
     .filter(dependency => dependency.type === 'production')
     .map(dependency => dependency.folderPath);
 
-  const devAddCommands = some(devAndMissingDependencies)
-    .filter(dependencies => dependencies.length > 0)
-    .map(dependencies => ({ yarn: [`yarn add -D ${dependencies.join(' ')}`], npm: [`npm install -D ${dependencies.join(' ')}`] }));
+  const devDependencyPaths = some(devAndMissingDependencies).filter(dependencies => dependencies.length > 0);
 
-  const prodAddCommands = some(prodDependencies)
-    .filter(dependencies => dependencies.length > 0)
-    .map(dependencies => ({ yarn: [`yarn add ${dependencies.join(' ')}`], npm: [`npm install ${dependencies.join(' ')}`] }));
+  const devAddCommands = devDependencyPaths.map(dependencies => ({
+    yarn: [`yarn add -D ${dependencies.join(' ')}`],
+    npm: [`npm install -D ${dependencies.join(' ')}`],
+  }));
+
+  const dependencyPaths = some(prodDependencies).filter(dependencies => dependencies.length > 0);
+
+  const prodAddCommands = dependencyPaths.map(dependencies => ({
+    yarn: [`yarn add ${dependencies.join(' ')}`],
+    npm: [`npm install ${dependencies.join(' ')}`],
+  }));
 
   const addCommands = prodAddCommands
     .fold(devAddCommands, prodCommands =>
@@ -121,7 +131,18 @@ async function outputLocalSetupCommandsIfProjectsNotAlreadyConfiguredAsLocal(
         }))
       )
     )
-    .map(({ npm, yarn }) => ({ npm, yarn: yarn.concat(['yarn install --check-files']) }));
+    .map(({ npm, yarn }) => ({
+      npm,
+      yarn: yarn.concat(['yarn install --check-files']),
+    }));
+
+  let hasOption: OutputOptions = {
+    npm: await doesPackageLockFileExist(),
+    yarn: await doesYarnLockFileExist(),
+    post: outputPostCommandMessages,
+  };
+  hasOption['npmOrYarn'] = hasOption['npm'] || hasOption['yarn'];
+
   const maybeFilesExist = await addCommands.fold<
     Promise<
       Option<{
@@ -161,15 +182,105 @@ async function outputLocalSetupCommandsIfProjectsNotAlreadyConfiguredAsLocal(
     }
   );
 
-  return commandsToRun.map(commandsText => {
-    const targetArgumentValue = targetProjects.map(targetProject =>
-      path.relative(workingDirectoryAbsolutePath, targetProject.targetProjectAbsolutePath)
-    );
+  const targetProjectPaths = targetProjects.map(targetProject =>
+    path.relative(workingDirectoryAbsolutePath, targetProject.targetProjectAbsolutePath)
+  );
+
+  const commandString = commandsToRun.map(commandsText => {
     const commandText = cliConstants.commandName;
-    const targetText = `--${cliConstants.targetProjectArg} ${targetArgumentValue.join(' ')}`;
+    const targetText = `--${cliConstants.targetProjectArg} ${targetProjectPaths.join(' ')}`;
     return outputPostCommandMessages
       ? `${commandsText}\n\nTo get updated changes from target projects, run this command again.` +
           `\n\t${commandText} ${targetText}\n  or watch continually\n\t${commandText} ${cliConstants.watchCommandArg} ${targetText}\n`
       : `${commandsText}\n\n`;
   });
+
+  const thisCommand = cliConstants.commandName;
+  const targetArg = cliConstants.targetProjectArg;
+  const watch = cliConstants.watchCommandArg;
+
+  const argJoin = (a: Option<string[]> | string[]) => {
+    if (a instanceof Array) {
+      return a.join(' ');
+    } else {
+      return a.fold('', s => s.join(' '));
+    }
+  };
+
+  interface OutputOptions {
+    npm?: boolean;
+    npmOrYarn?: boolean;
+    post?: boolean;
+    yarn?: boolean;
+    [s: string]: boolean | undefined;
+  }
+  type StringProducer = () => string;
+  type OutputProvider = string | StringProducer | StringProducer[];
+  interface OptionalOutputProvider {
+    npm?: OutputProvider;
+    npmOrYarn?: OutputProvider;
+    post?: OutputProvider;
+    yarn?: OutputProvider;
+    [s: string]: OutputProvider | undefined;
+  }
+  type OutputSpecifier = string | OptionalOutputProvider;
+
+  let a: OutputSpecifier[] = [
+    `
+
+Set up target projects as local dependencies with `,
+    { npm: 'npm', npmOrYarn: ' or ', yarn: 'yarn' },
+    ` using:`,
+    {
+      npm: [() => `npm install ${argJoin(dependencyPaths)}`, () => `npm install -D ${argJoin(devDependencyPaths)}`],
+      npmOrYarn: '\n  and/or\n',
+      yarn: [() => `yarn add ${argJoin(dependencyPaths)}`, () => `yarn add -D ${argJoin(devDependencyPaths)}`],
+    },
+    {
+      yarn: 'yarn install --check-files',
+    },
+    `
+
+`,
+    {
+      post: () =>
+        `To get updated changes from target projects, run this command again.
+\t${thisCommand} --${targetArg} ${argJoin(targetProjectPaths)}
+  or watch continually
+\t${thisCommand} ${watch} --${targetArg} ${argJoin(targetProjectPaths)}
+`,
+    },
+  ];
+
+  const evaluator = (s: string | OptionalOutputProvider): (Option<string> | Option<string>[])[] | Option<string> => {
+    if (typeof s === 'string') {
+      return some(s);
+    } else {
+      return Object.keys(s)
+        .sort()
+        .map(opt => {
+          if (!hasOption[opt]) {
+            return none;
+          }
+
+          const outputProvider = s[opt];
+          if (outputProvider === undefined) {
+            return none;
+          } else if (typeof outputProvider === 'string') {
+            return some(outputProvider);
+          } else if (Array.isArray(outputProvider)) {
+            return outputProvider.map(o => some(o()));
+          } else {
+            return some(outputProvider());
+          }
+        });
+    }
+  };
+
+  const evaluated: Option<string>[] = a.map(evaluator).flat(3);
+  const stringified: string = evaluated.map(getOrElse(() => '')).join('');
+
+  assert(stringified === commandString.getOrElse(''));
+
+  return some(stringified);
 }
