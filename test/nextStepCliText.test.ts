@@ -40,7 +40,7 @@ describe(`Next steps cli text`, () => {
     );
 
     const outputMatchRegexText =
-      `^\n\nSetup target projects as local dependencies with yarn using:\n` +
+      `^\n\nSet up target projects as local dependencies with yarn using:\n` +
       `\tyarn add file:E:/some_path/widgets\n` +
       `\tyarn add -D file:E:/some_path/anotherTargetProject file:E:/some_path/yetAnotherTargetProject\n` +
       `\tyarn install --check-files\n\n.*`;
@@ -77,7 +77,7 @@ describe(`Next steps cli text`, () => {
     );
 
     const outputMatchRegexText =
-      `^\n\nSetup target projects as local dependencies with npm using:\n` + `\tnpm install file:local_modules\/widgets\n\n`;
+      `^\n\nSet up target projects as local dependencies with npm using:\n` + `\tnpm install file:local_modules\/widgets\n\n`;
     const outputMatch = new RegExp(outputMatchRegexText);
 
     expect(virtualLoggerLogSpy).toHaveBeenCalled();
@@ -111,11 +111,11 @@ describe(`Next steps cli text`, () => {
     );
 
     const outputMatchRegexText =
-      `^\n\nSetup target projects as local dependencies with yarn and npm using:\n` +
-      `\tyarn add file:local_modules\/widgets\n` +
-      `\tyarn install --check-files\n` +
+      `^\n\nSet up target projects as local dependencies with npm or yarn using:\n` +
+      `\tnpm install file:local_modules\/widgets\n` +
       `  and\/or\n` +
-      `\tnpm install file:local_modules\/widgets\n\n.*`;
+      `\tyarn add file:local_modules\/widgets\n` +
+      `\tyarn install --check-files\n\n.*`;
     const outputMatch = new RegExp(outputMatchRegexText);
 
     expect(virtualLoggerLogSpy).toHaveBeenCalled();

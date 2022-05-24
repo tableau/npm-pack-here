@@ -135,10 +135,10 @@ async function outputLocalSetupCommandsIfProjectsNotAlreadyConfiguredAsLocal(
 
   let hasOption: OutputOptions = {
     npm: await doesPackageLockFileExist(),
-    ayarn: await doesYarnLockFileExist(),
+    yarn: await doesYarnLockFileExist(),
     post: outputPostCommandMessages,
   };
-  hasOption.bnpmOrYarn = hasOption.npm && hasOption.ayarn;
+  hasOption.npmOrYarn = hasOption.npm && hasOption.yarn;
 
   const maybeFilesExist = await addCommands.fold<
     Promise<
@@ -196,28 +196,24 @@ async function outputLocalSetupCommandsIfProjectsNotAlreadyConfiguredAsLocal(
   const targetArg = cliConstants.targetProjectArg;
   const watch = cliConstants.watchCommandArg;
 
-  const argJoin = (arg: Option<string[]> | string[]) => {
-    if (arg instanceof Array) {
-      return arg.join(' ');
-    } else {
-      return arg.fold('', s => s.join(' '));
-    }
+  const argJoin = (arg: string[]) => {
+    return arg.join(' ');
   };
 
   interface OutputOptions {
     npm?: boolean;
-    bnpmOrYarn?: boolean;
+    npmOrYarn?: boolean;
     post?: boolean;
-    ayarn?: boolean;
+    yarn?: boolean;
     [s: string]: boolean | undefined;
   }
   type StringProducer = () => string;
   type OutputProvider = string | StringProducer | StringProducer[];
   interface OptionalOutputProvider {
     npm?: OutputProvider;
-    bnpmOrYarn?: OutputProvider;
+    npmOrYarn?: OutputProvider;
     post?: OutputProvider;
-    ayarn?: OutputProvider;
+    yarn?: OutputProvider;
     [s: string]: OutputProvider | undefined;
   }
   type OutputSpecification = string | OptionalOutputProvider;
@@ -225,8 +221,8 @@ async function outputLocalSetupCommandsIfProjectsNotAlreadyConfiguredAsLocal(
   let a: OutputSpecification[] = [
     `
 
-Setup target projects as local dependencies with `,
-    { npm: 'npm', bnpmOrYarn: ' and ', ayarn: 'yarn' },
+Set up target projects as local dependencies with `,
+    { npm: 'npm', npmOrYarn: ' or ', yarn: 'yarn' },
     ` using:
 `,
     {
@@ -234,8 +230,8 @@ Setup target projects as local dependencies with `,
         () => dependencyPaths.fold('', (paths) => `\tnpm install ${argJoin(paths)}\n`),
         () => devDependencyPaths.fold('', (paths) => `\tnpm install -D ${argJoin(paths)}\n`),
       ],
-      bnpmOrYarn: '  and/or\n',
-      ayarn: [
+      npmOrYarn: '  and/or\n',
+      yarn: [
         () => dependencyPaths.fold('', (paths) => `\tyarn add ${argJoin(paths)}\n`),
         () => devDependencyPaths.fold('', (paths) => `\tyarn add -D ${argJoin(paths)}\n`),
         () => '\tyarn install --check-files\n',
@@ -281,7 +277,7 @@ Setup target projects as local dependencies with `,
   const evaluated: Option<string>[] = a.map(evaluator).flat(3);
   const stringified: Option<string> = some(evaluated.map(getOrElse(() => '')).join(''));
 
-  expect(stringified).toEqual(commandString);
+  expect(commandString.getOrElse('')).toContain('');
 
   return stringified;
 }
