@@ -86,7 +86,7 @@ describe(`Next steps cli text`, () => {
     done();
   });
 
-  it(`should output yarn and npm commands to run if target project is not setup as a local dependency`, async done => {
+  it(`should output yarn and npm commands to run if both yarn & npm locks exist and target project is not setup as a local dependency`, async done => {
     const workingDirectory = 'destination';
     const targetProject = 'widgets';
     const logger = getVirtualLoggerInstance();
@@ -100,6 +100,44 @@ describe(`Next steps cli text`, () => {
       workingDirectory,
       () => Promise.resolve(true) /** doesPackageLockFileExist */,
       () => Promise.resolve(true) /** doesYarnLockFileExist */,
+      () =>
+        Promise.resolve(
+          some({
+            dependencies: {
+              [targetProject]: '0.0.0',
+            },
+          })
+        ) /** getPackageJsonContents */
+    );
+
+    const outputMatchRegexText =
+      `^\n\nSet up target projects as local dependencies with npm or yarn using:\n` +
+      `\tnpm install file:local_modules\/widgets\n` +
+      `  and\/or\n` +
+      `\tyarn add file:local_modules\/widgets\n` +
+      `\tyarn install --check-files\n\n.*`;
+    const outputMatch = new RegExp(outputMatchRegexText);
+
+    expect(virtualLoggerLogSpy).toHaveBeenCalled();
+    expect(logger.lastMessage()).toMatch(outputMatch);
+
+    done();
+  });
+
+  it(`should output yarn and npm commands to run if neither yarn nor npm locks exist and target project is not setup as a local dependency`, async done => {
+    const workingDirectory = 'destination';
+    const targetProject = 'widgets';
+    const logger = getVirtualLoggerInstance();
+    const virtualLoggerLogSpy = spyOn(logger, 'log').and.callThrough();
+
+    await maybeOutputNextStepsText(
+      './local_modules' /* maybeDestinationDirectoryToAddDependencyOn */,
+      [{ targetProjectName: targetProject, targetProjectAbsolutePath: targetProject }],
+      true /* outputPostCommandMessages */,
+      logger,
+      workingDirectory,
+      () => Promise.resolve(false) /** doesPackageLockFileExist */,
+      () => Promise.resolve(false) /** doesYarnLockFileExist */,
       () =>
         Promise.resolve(
           some({

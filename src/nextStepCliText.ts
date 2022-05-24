@@ -111,12 +111,24 @@ async function outputLocalSetupCommandsIfProjectsNotAlreadyConfiguredAsLocal(
     return none;
   }
 
+  const hasNpmLock = await doesPackageLockFileExist();
+  const hasYarnLock = await doesYarnLockFileExist();
+  const isAmbiguous = (hasNpmLock && hasYarnLock) || (!hasNpmLock && !hasYarnLock);
+
+  interface OutputOptions {
+    npm?: boolean;
+    npmOrYarn?: boolean;
+    post?: boolean;
+    yarn?: boolean;
+    [s: string]: boolean | undefined;
+  }
+
   let hasOption: OutputOptions = {
-    npm: await doesPackageLockFileExist(),
-    yarn: await doesYarnLockFileExist(),
+    npm: hasNpmLock || isAmbiguous,
+    npmOrYarn: isAmbiguous,
+    yarn: hasYarnLock || isAmbiguous,
     post: outputPostCommandMessages,
   };
-  hasOption.npmOrYarn = hasOption.npm && hasOption.yarn;
 
   const targetProjectPaths = targetProjects.map(targetProject =>
     path.relative(workingDirectoryAbsolutePath, targetProject.targetProjectAbsolutePath)
@@ -126,17 +138,6 @@ async function outputLocalSetupCommandsIfProjectsNotAlreadyConfiguredAsLocal(
   const targetArg = cliConstants.targetProjectArg;
   const watch = cliConstants.watchCommandArg;
 
-  const argJoin = (arg: string[]) => {
-    return arg.join(' ');
-  };
-
-  interface OutputOptions {
-    npm?: boolean;
-    npmOrYarn?: boolean;
-    post?: boolean;
-    yarn?: boolean;
-    [s: string]: boolean | undefined;
-  }
   type StringProducer = () => string;
   type OutputProvider = string | StringProducer | StringProducer[];
   interface OptionalOutputProvider {
@@ -148,7 +149,15 @@ async function outputLocalSetupCommandsIfProjectsNotAlreadyConfiguredAsLocal(
   }
   type OutputSpecification = string | OptionalOutputProvider;
 
-  let a: OutputSpecification[] = [
+  const argJoin = (arg: string[]) => {
+    return arg.join(' ');
+  };
+
+  const commandForPaths = (command: string, maybePaths: Option<string[]>): string => {
+    return maybePaths.fold('', paths => `\t${command} ${argJoin(paths)}\n`);
+  };
+
+  const outputSpec: OutputSpecification[] = [
     `
 
 Set up target projects as local dependencies with `,
@@ -157,13 +166,13 @@ Set up target projects as local dependencies with `,
 `,
     {
       npm: [
-        () => dependencyPaths.fold('', (paths) => `\tnpm install ${argJoin(paths)}\n`),
-        () => devDependencyPaths.fold('', (paths) => `\tnpm install -D ${argJoin(paths)}\n`),
+        () => commandForPaths('npm install', dependencyPaths),
+        () => commandForPaths('npm install -D', devDependencyPaths),
       ],
       npmOrYarn: '  and/or\n',
       yarn: [
-        () => dependencyPaths.fold('', (paths) => `\tyarn add ${argJoin(paths)}\n`),
-        () => devDependencyPaths.fold('', (paths) => `\tyarn add -D ${argJoin(paths)}\n`),
+        () => commandForPaths('yarn add', dependencyPaths),
+        () => commandForPaths('yarn add -D', devDependencyPaths),
         () => '\tyarn install --check-files\n',
       ],
     },
@@ -179,18 +188,18 @@ Set up target projects as local dependencies with `,
     },
   ];
 
-  const evaluator = (s: string | OptionalOutputProvider): (Option<string> | Option<string>[])[] | Option<string> => {
-    if (typeof s === 'string') {
-      return some(s);
+  const evaluator = (output: string | OptionalOutputProvider): (Option<string> | Option<string>[])[] | Option<string> => {
+    if (typeof output === 'string') {
+      return some(output);
     } else {
-      return Object.keys(s)
+      return Object.keys(output)
         .sort()
         .map(opt => {
           if (!hasOption[opt]) {
             return none;
           }
 
-          const outputProvider = s[opt];
+          const outputProvider = output[opt];
           if (outputProvider === undefined) {
             return none;
           } else if (typeof outputProvider === 'string') {
@@ -204,7 +213,7 @@ Set up target projects as local dependencies with `,
     }
   };
 
-  const evaluated: Option<string>[] = a.map(evaluator).flat(3);
+  const evaluated: Option<string>[] = outputSpec.map(evaluator).flat(3);
   const stringified: string = evaluated.map(getOrElse(() => '')).join('');
 
   return some(stringified);
