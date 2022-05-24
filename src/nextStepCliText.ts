@@ -1,4 +1,3 @@
-import { assert } from 'console';
 import { fromNullable, getOrElse, none, Option, some } from 'fp-ts/lib/Option';
 import * as path from 'path';
 import * as cliConstants from './cliConstants';
@@ -130,12 +129,16 @@ async function outputLocalSetupCommandsIfProjectsNotAlreadyConfiguredAsLocal(
     )
     .map(({ npm, yarn }) => ({ npm, yarn: yarn.concat(['yarn install --check-files']) }));
 
+  if (dependencyPaths.isNone() && devDependencyPaths.isNone()) {
+    return none;
+  }
+
   let hasOption: OutputOptions = {
     npm: await doesPackageLockFileExist(),
-    yarn: await doesYarnLockFileExist(),
+    ayarn: await doesYarnLockFileExist(),
     post: outputPostCommandMessages,
   };
-  hasOption.npmOrYarn = hasOption.npm && hasOption.yarn;
+  hasOption.bnpmOrYarn = hasOption.npm && hasOption.ayarn;
 
   const maybeFilesExist = await addCommands.fold<
     Promise<
@@ -203,18 +206,18 @@ async function outputLocalSetupCommandsIfProjectsNotAlreadyConfiguredAsLocal(
 
   interface OutputOptions {
     npm?: boolean;
-    npmOrYarn?: boolean;
+    bnpmOrYarn?: boolean;
     post?: boolean;
-    yarn?: boolean;
+    ayarn?: boolean;
     [s: string]: boolean | undefined;
   }
   type StringProducer = () => string;
   type OutputProvider = string | StringProducer | StringProducer[];
   interface OptionalOutputProvider {
     npm?: OutputProvider;
-    npmOrYarn?: OutputProvider;
+    bnpmOrYarn?: OutputProvider;
     post?: OutputProvider;
-    yarn?: OutputProvider;
+    ayarn?: OutputProvider;
     [s: string]: OutputProvider | undefined;
   }
   type OutputSpecification = string | OptionalOutputProvider;
@@ -223,7 +226,7 @@ async function outputLocalSetupCommandsIfProjectsNotAlreadyConfiguredAsLocal(
     `
 
 Setup target projects as local dependencies with `,
-    { npm: 'npm', npmOrYarn: ' or ', yarn: 'yarn' },
+    { npm: 'npm', bnpmOrYarn: ' and ', ayarn: 'yarn' },
     ` using:
 `,
     {
@@ -231,17 +234,14 @@ Setup target projects as local dependencies with `,
         () => dependencyPaths.fold('', (paths) => `\tnpm install ${argJoin(paths)}\n`),
         () => devDependencyPaths.fold('', (paths) => `\tnpm install -D ${argJoin(paths)}\n`),
       ],
-      npmOrYarn: '  and/or\n',
-      yarn: [
+      bnpmOrYarn: '  and/or\n',
+      ayarn: [
         () => dependencyPaths.fold('', (paths) => `\tyarn add ${argJoin(paths)}\n`),
         () => devDependencyPaths.fold('', (paths) => `\tyarn add -D ${argJoin(paths)}\n`),
+        () => '\tyarn install --check-files\n',
       ],
     },
-    {
-      yarn: '\tyarn install --check-files\n',
-    },
     `
-
 `,
     {
       post: () =>
@@ -279,9 +279,9 @@ Setup target projects as local dependencies with `,
   };
 
   const evaluated: Option<string>[] = a.map(evaluator).flat(3);
-  const stringified: string = evaluated.map(getOrElse(() => '')).join('');
+  const stringified: Option<string> = some(evaluated.map(getOrElse(() => '')).join(''));
 
-  assert(stringified === commandString.getOrElse(''));
+  expect(stringified).toEqual(commandString);
 
-  return some(stringified);
+  return stringified;
 }
