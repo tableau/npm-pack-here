@@ -105,29 +105,7 @@ async function outputLocalSetupCommandsIfProjectsNotAlreadyConfiguredAsLocal(
     .map(dependency => dependency.folderPath);
 
   const devDependencyPaths = some(devAndMissingDependencies).filter(dependencies => dependencies.length > 0);
-
-  const devAddCommands = devDependencyPaths.map(dependencies => ({
-    yarn: [`yarn add -D ${dependencies.join(' ')}`],
-    npm: [`npm install -D ${dependencies.join(' ')}`],
-  }));
-
   const dependencyPaths = some(prodDependencies).filter(dependencies => dependencies.length > 0);
-
-  const prodAddCommands = dependencyPaths.map(dependencies => ({
-    yarn: [`yarn add ${dependencies.join(' ')}`],
-    npm: [`npm install ${dependencies.join(' ')}`],
-  }));
-
-  const addCommands = prodAddCommands
-    .fold(devAddCommands, prodCommands =>
-      some(
-        devAddCommands.fold(prodCommands, devCommands => ({
-          npm: prodCommands.npm.concat(devCommands.npm),
-          yarn: prodCommands.yarn.concat(devCommands.yarn),
-        }))
-      )
-    )
-    .map(({ npm, yarn }) => ({ npm, yarn: yarn.concat(['yarn install --check-files']) }));
 
   if (dependencyPaths.isNone() && devDependencyPaths.isNone()) {
     return none;
@@ -140,57 +118,9 @@ async function outputLocalSetupCommandsIfProjectsNotAlreadyConfiguredAsLocal(
   };
   hasOption.npmOrYarn = hasOption.npm && hasOption.yarn;
 
-  const maybeFilesExist = await addCommands.fold<
-    Promise<
-      Option<{
-        yarnLockPresent: boolean;
-        packageLockPresent: boolean;
-      }>
-    >
-  >(Promise.resolve(none), async _ => {
-    const yarnLockPresent = await doesYarnLockFileExist();
-    const packageLockPresent = await doesPackageLockFileExist();
-    return some({ yarnLockPresent, packageLockPresent });
-  });
-
-  const yarnCommandsIfYarnLockPresent = addCommands.chain(({ yarn }) =>
-    maybeFilesExist.chain(({ yarnLockPresent }) => (yarnLockPresent ? some(yarn) : none))
-  );
-
-  const npmCommandsIfPackageLockPresent = addCommands.chain(({ npm }) =>
-    maybeFilesExist.chain(({ packageLockPresent }) => (packageLockPresent ? some(npm) : none))
-  );
-
-  const getCommandHeaderString = (yarnOrNpm: 'yarn' | 'npm' | 'both') => {
-    const context = yarnOrNpm === 'both' ? 'yarn and npm' : yarnOrNpm;
-    return `\n\nSetup target projects as local dependencies with ${context} using:`;
-  };
-
-  const commandsToRun = yarnCommandsIfYarnLockPresent.fold(
-    npmCommandsIfPackageLockPresent.map(npmCommandsToRun => {
-      return `${getCommandHeaderString('npm')}\n\t${npmCommandsToRun.join('\n\t')}`;
-    }),
-    yarnCommandsToRun => {
-      return some(
-        npmCommandsIfPackageLockPresent.fold(`${getCommandHeaderString('yarn')}\n\t${yarnCommandsToRun.join('\n\t')}`, npmCommandsToRun => {
-          return `${getCommandHeaderString('both')}\n\t${yarnCommandsToRun.join('\n\t')}\n  and/or\n\t${npmCommandsToRun.join('\n\t')}`;
-        })
-      );
-    }
-  );
-
   const targetProjectPaths = targetProjects.map(targetProject =>
     path.relative(workingDirectoryAbsolutePath, targetProject.targetProjectAbsolutePath)
   );
-
-  const commandString = commandsToRun.map(commandsText => {
-    const commandText = cliConstants.commandName;
-    const targetText = `--${cliConstants.targetProjectArg} ${targetProjectPaths.join(' ')}`;
-    return outputPostCommandMessages
-      ? `${commandsText}\n\nTo get updated changes from target projects, run this command again.` +
-          `\n\t${commandText} ${targetText}\n  or watch continually\n\t${commandText} ${cliConstants.watchCommandArg} ${targetText}\n`
-      : `${commandsText}\n\n`;
-  });
 
   const thisCommand = cliConstants.commandName;
   const targetArg = cliConstants.targetProjectArg;
@@ -275,9 +205,7 @@ Set up target projects as local dependencies with `,
   };
 
   const evaluated: Option<string>[] = a.map(evaluator).flat(3);
-  const stringified: Option<string> = some(evaluated.map(getOrElse(() => '')).join(''));
+  const stringified: string = evaluated.map(getOrElse(() => '')).join('');
 
-  expect(commandString.getOrElse('')).toContain('');
-
-  return stringified;
+  return some(stringified);
 }
