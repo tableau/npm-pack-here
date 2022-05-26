@@ -15,6 +15,7 @@ import { maybeOutputNextStepsText } from './nextStepCliText';
 import { tryGetProjectPackageJsonContent } from './packageJson';
 import { PackageTargetAndCopyToDestinationDirectoriesCalls } from './packTargetAndCopyToDestinationDirectories';
 import { prettyPrintError } from './prettyPrintError';
+import { doesYarnrcYmlFileExist, isYarnBerryUsingNodeModulesLinker } from './yarnrcYml';
 
 // Makes the script crash on unhandled rejections instead of silently
 // ignoring them. In the future, promise rejections that are not handled will
@@ -103,11 +104,6 @@ function doesYarnLockFileExist(): Promise<boolean> {
   return fileSystemOperations.pathExists(absolutePathToDestinationProjectYarnLock);
 }
 
-function doesYarnrcYmlFileExist(): Promise<boolean> {
-  const absolutePathToDestinationProjectYarnrcYml = path.resolve('.yarnrc.yml');
-  return fileSystemOperations.pathExists(absolutePathToDestinationProjectYarnrcYml);
-}
-
 async function performFirstPackAndCopyToCallForGivenArguments(
   outputPostCommandMessages: boolean,
   argv: ExpectedArguments
@@ -136,16 +132,18 @@ async function performFirstPackAndCopyToCallForGivenArguments(
 
   await executePackageTargetAndCopyToDestinationDirectoriesCalls(excludedDestinationPaths, logger, packAndCopyCalls);
 
+  const yarnrcYmlExistence: Promise<boolean> = doesYarnrcYmlFileExist();
   await maybeOutputNextStepsText(
     maybeDestinationDirectoryToAddDependencyOn,
     rootTargets,
     outputPostCommandMessages,
     logger,
     process.cwd(),
-    doesPackageLockFileExist,
-    doesYarnLockFileExist,
-    doesYarnrcYmlFileExist,
-    () => tryGetProjectPackageJsonContent(path.resolve('./'))
+    doesPackageLockFileExist(),
+    doesYarnLockFileExist(),
+    yarnrcYmlExistence,
+    () => tryGetProjectPackageJsonContent(path.resolve('./')),
+    () => isYarnBerryUsingNodeModulesLinker(yarnrcYmlExistence)
   );
 
   return { packAndCopyCalls, excludedDestinationPaths, logger };

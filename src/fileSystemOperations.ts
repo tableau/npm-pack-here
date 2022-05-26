@@ -1,6 +1,7 @@
 import { failure, success, Validation } from 'fp-ts/lib/Validation';
 import { constants } from 'fs';
 import * as fsExtra from 'fs-extra';
+import * as jsYaml from 'js-yaml';
 
 export type FileSystemItemFileType = 'file';
 export const FileSystemItemFileType = 'file';
@@ -33,6 +34,7 @@ export interface FileSystemReadOperations {
   remove(itemPath: string): Promise<void>;
   readFile(filePath: string): Promise<string>;
   readJson(filePath: string): Promise<unknown>;
+  readYaml(filePath: string): Promise<unknown>;
   pathExists(path: string): Promise<boolean>;
   getStatistics(path: string): Promise<FileSystemItemStatistics>;
   getItemNames(rootDir: string): Promise<string[]>;
@@ -84,6 +86,9 @@ export const fileSystemOperations: FileSystemReadOperations & FileSystemWriteOpe
   },
   readJson: async (filePath: string): Promise<unknown> => {
     return fsExtra.readJson(filePath, { encoding: 'utf-8' });
+  },
+  readYaml: async (filePath: string): Promise<unknown> => {
+    return fileSystemOperations.readFile(filePath).then(content => jsYaml.load(content));
   },
   pathExists: (path: string): Promise<boolean> => {
     return fsExtra.pathExists(path);

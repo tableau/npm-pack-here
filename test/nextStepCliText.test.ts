@@ -24,9 +24,9 @@ describe(`Next steps cli text`, () => {
       true /* outputPostCommandMessages */,
       logger,
       workingDirectory,
-      () => Promise.resolve(false) /** doesPackageLockFileExist */,
-      () => Promise.resolve(true) /** doesYarnLockFileExist */,
-      () => Promise.resolve(false) /** doesYarnrcYmlFileExist */,
+      Promise.resolve(false) /** doesPackageLockFileExist */,
+      Promise.resolve(true) /** doesYarnLockFileExist */,
+      Promise.resolve(false) /** doesYarnrcYmlFileExist */,
       () =>
         Promise.resolve(
           some({
@@ -37,7 +37,8 @@ describe(`Next steps cli text`, () => {
               [anotherTargetProject]: '0.0.1',
             },
           })
-        ) /** getPackageJsonContents */
+        ) /** getPackageJsonContents */,
+      () => Promise.resolve(false) /** isYarnBerryUsingNodeModulesLinker */
     );
 
     const outputMatchRegexText =
@@ -65,9 +66,9 @@ describe(`Next steps cli text`, () => {
       true /* outputPostCommandMessages */,
       logger,
       workingDirectory,
-      () => Promise.resolve(true) /** doesPackageLockFileExist */,
-      () => Promise.resolve(false) /** doesYarnLockFileExist */,
-      () => Promise.resolve(false) /** doesYarnrcYmlFileExist */,
+      Promise.resolve(true) /** doesPackageLockFileExist */,
+      Promise.resolve(false) /** doesYarnLockFileExist */,
+      Promise.resolve(false) /** doesYarnrcYmlFileExist */,
       () =>
         Promise.resolve(
           some({
@@ -75,7 +76,8 @@ describe(`Next steps cli text`, () => {
               [targetProject]: '0.0.0',
             },
           })
-        ) /** getPackageJsonContents */
+        ) /** getPackageJsonContents */,
+      () => Promise.resolve(false) /** isYarnBerryUsingNodeModulesLinker */
     );
 
     const outputMatchRegexText =
@@ -100,9 +102,9 @@ describe(`Next steps cli text`, () => {
       true /* outputPostCommandMessages */,
       logger,
       workingDirectory,
-      () => Promise.resolve(true) /** doesPackageLockFileExist */,
-      () => Promise.resolve(true) /** doesYarnLockFileExist */,
-      () => Promise.resolve(false) /** doesYarnrcYmlFileExist */,
+      Promise.resolve(true) /** doesPackageLockFileExist */,
+      Promise.resolve(true) /** doesYarnLockFileExist */,
+      Promise.resolve(false) /** doesYarnrcYmlFileExist */,
       () =>
         Promise.resolve(
           some({
@@ -110,7 +112,8 @@ describe(`Next steps cli text`, () => {
               [targetProject]: '0.0.0',
             },
           })
-        ) /** getPackageJsonContents */
+        ) /** getPackageJsonContents */,
+      () => Promise.resolve(false) /** isYarnBerryUsingNodeModulesLinker */
     );
 
     const outputMatchRegexText =
@@ -139,9 +142,9 @@ describe(`Next steps cli text`, () => {
       true /* outputPostCommandMessages */,
       logger,
       workingDirectory,
-      () => Promise.resolve(false) /** doesPackageLockFileExist */,
-      () => Promise.resolve(false) /** doesYarnLockFileExist */,
-      () => Promise.resolve(false) /** doesYarnrcYmlFileExist */,
+      Promise.resolve(false) /** doesPackageLockFileExist */,
+      Promise.resolve(false) /** doesYarnLockFileExist */,
+      Promise.resolve(false) /** doesYarnrcYmlFileExist */,
       () =>
         Promise.resolve(
           some({
@@ -149,7 +152,8 @@ describe(`Next steps cli text`, () => {
               [targetProject]: '0.0.0',
             },
           })
-        ) /** getPackageJsonContents */
+        ) /** getPackageJsonContents */,
+      () => Promise.resolve(false) /** isYarnBerryUsingNodeModulesLinker */
     );
 
     const outputMatchRegexText =
@@ -184,9 +188,9 @@ describe(`Next steps cli text`, () => {
       true /* outputPostCommandMessages */,
       logger,
       workingDirectory,
-      () => Promise.resolve(false) /** doesPackageLockFileExist */,
-      () => Promise.resolve(true) /** doesYarnLockFileExist */,
-      () => Promise.resolve(false) /** doesYarnrcYmlFileExist */,
+      Promise.resolve(false) /** doesPackageLockFileExist */,
+      Promise.resolve(true) /** doesYarnLockFileExist */,
+      Promise.resolve(false) /** doesYarnrcYmlFileExist */,
       () =>
         Promise.resolve(
           some({
@@ -195,7 +199,8 @@ describe(`Next steps cli text`, () => {
               [anotherTargetProject]: '0.0.0',
             },
           })
-        ) /** getPackageJsonContents */
+        ) /** getPackageJsonContents */,
+      () => Promise.resolve(false) /** isYarnBerryUsingNodeModulesLinker */
     );
 
     const regExpEscape = (text: string) => {
@@ -230,9 +235,9 @@ describe(`Next steps cli text`, () => {
       false /* outputPostCommandMessages */,
       logger,
       workingDirectory,
-      () => Promise.resolve(false) /** doesPackageLockFileExist */,
-      () => Promise.resolve(true) /** doesYarnLockFileExist */,
-      () => Promise.resolve(false) /** doesYarnrcYmlFileExist */,
+      Promise.resolve(false) /** doesPackageLockFileExist */,
+      Promise.resolve(true) /** doesYarnLockFileExist */,
+      Promise.resolve(false) /** doesYarnrcYmlFileExist */,
       () =>
         Promise.resolve(
           some({
@@ -240,7 +245,8 @@ describe(`Next steps cli text`, () => {
               [targetProject]: '0.0.0',
             },
           })
-        ) /** getPackageJsonContents */
+        ) /** getPackageJsonContents */,
+      () => Promise.resolve(false) /** isYarnBerryUsingNodeModulesLinker */
     );
 
     const outputMatchRegexText = `To get updated changes from target projects, run this command again.\n`;
@@ -253,7 +259,7 @@ describe(`Next steps cli text`, () => {
     done();
   });
 
-  it(`should not output any yarn commands if yarn 2+ is detected`, async done => {
+  it(`should output an error if yarn 2+ is detected without node_modules linker`, async done => {
     const workingDirectory = 'destination';
     const targetProject = 'widgets';
     const anotherTargetProject = 'anotherTargetProject';
@@ -269,9 +275,9 @@ describe(`Next steps cli text`, () => {
       true /* outputPostCommandMessages */,
       logger,
       workingDirectory,
-      () => Promise.resolve(false) /** doesPackageLockFileExist */,
-      () => Promise.resolve(true) /** doesYarnLockFileExist */,
-      () => Promise.resolve(true) /** doesYarnrcYmlFileExist */,
+      Promise.resolve(false) /** doesPackageLockFileExist */,
+      Promise.resolve(true) /** doesYarnLockFileExist */,
+      Promise.resolve(true) /** doesYarnrcYmlFileExist */,
       () =>
         Promise.resolve(
           some({
@@ -280,11 +286,60 @@ describe(`Next steps cli text`, () => {
               [anotherTargetProject]: '0.0.0',
             },
           })
-        ) /** getPackageJsonContents */
+        ) /** getPackageJsonContents */,
+      () => Promise.resolve(false) /** isYarnBerryUsingNodeModulesLinker */
     );
 
     expect(virtualLoggerLogSpy).toHaveBeenCalled();
-    expect(logger.lastMessage()).not.toMatch('yarn');
+    expect(logger.lastMessage()).toMatch('Error: Detected you are using yarn 2+');
+
+    done();
+  });
+
+  it(`should output yarn commands if yarn 2+ is detected`, async done => {
+    const workingDirectory = 'destination';
+    const targetProject = 'widgets';
+    const anotherTargetProject = 'anotherTargetProject';
+    const yetAnotherTargetProject = 'yetAnotherTargetProject';
+    const logger = getVirtualLoggerInstance();
+    const virtualLoggerLogSpy = spyOn(logger, 'log').and.callThrough();
+
+    await maybeOutputNextStepsText(
+      '/tmp/build' /* maybeDestinationDirectoryToAddDependencyOn */,
+      [
+        { targetProjectName: targetProject, targetProjectAbsolutePath: targetProject },
+        { targetProjectName: anotherTargetProject, targetProjectAbsolutePath: anotherTargetProject },
+        { targetProjectName: yetAnotherTargetProject, targetProjectAbsolutePath: yetAnotherTargetProject },
+      ],
+      true /* outputPostCommandMessages */,
+      logger,
+      workingDirectory,
+      Promise.resolve(false) /** doesPackageLockFileExist */,
+      Promise.resolve(true) /** doesYarnLockFileExist */,
+      Promise.resolve(true) /** doesYarnrcYmlFileExist */,
+      () =>
+        Promise.resolve(
+          some({
+            dependencies: {
+              [targetProject]: '0.0.0',
+            },
+            devDependencies: {
+              [anotherTargetProject]: '0.0.0',
+            },
+          })
+        ) /** getPackageJsonContents */,
+      () => Promise.resolve(true) /** isYarnBerryUsingNodeModulesLinker */
+    );
+
+    const outputMatchRegexText =
+      `^\n\nSet up target projects as local dependencies with yarn using:\n` +
+      `\tyarn add widgets@file:/tmp/build/widgets\n` +
+      `\tyarn add -D anotherTargetProject@file:/tmp/build/anotherTargetProject yetAnotherTargetProject@file:/tmp/build/yetAnotherTargetProject\n` +
+      `\tyarn install\n\n.*`;
+    const outputMatch = new RegExp(outputMatchRegexText);
+
+    expect(virtualLoggerLogSpy).toHaveBeenCalled();
+    expect(logger.lastMessage()).toMatch(outputMatch);
 
     done();
   });
@@ -294,7 +349,7 @@ describe(`Next steps cli text`, () => {
     const targetProject = 'widgets';
     const anotherTargetProject = 'anotherTargetProject';
     const logger = getVirtualLoggerInstance();
-    const virtualLoggerLogSpy = spyOn(logger, 'log');
+    const virtualLoggerLogSpy = spyOn(logger, 'log').and.callThrough();
 
     await maybeOutputNextStepsText(
       './local_modules' /* maybeDestinationDirectoryToAddDependencyOn */,
@@ -305,9 +360,9 @@ describe(`Next steps cli text`, () => {
       true /* outputPostCommandMessages */,
       logger,
       workingDirectory,
-      () => Promise.resolve(false) /** doesPackageLockFileExist */,
-      () => Promise.resolve(true) /** doesYarnLockFileExist */,
-      () => Promise.resolve(false) /** doesYarnrcYmlFileExist */,
+      Promise.resolve(false) /** doesPackageLockFileExist */,
+      Promise.resolve(true) /** doesYarnLockFileExist */,
+      Promise.resolve(false) /** doesYarnrcYmlFileExist */,
       () =>
         Promise.resolve(
           some({
@@ -318,7 +373,8 @@ describe(`Next steps cli text`, () => {
               [anotherTargetProject]: `file:${anotherTargetProject}`,
             },
           })
-        ) /** getPackageJsonContents */
+        ) /** getPackageJsonContents */,
+      () => Promise.resolve(false) /** isYarnBerryUsingNodeModulesLinker */
     );
 
     expect(virtualLoggerLogSpy).not.toHaveBeenCalled();
@@ -330,7 +386,7 @@ describe(`Next steps cli text`, () => {
     const workingDirectory = 'destination';
     const targetProject = 'widgets';
     const logger = getVirtualLoggerInstance();
-    const virtualLoggerLogSpy = spyOn(logger, 'log');
+    const virtualLoggerLogSpy = spyOn(logger, 'log').and.callThrough();
 
     await maybeOutputNextStepsText(
       undefined /* maybeDestinationDirectoryToAddDependencyOn */,
@@ -338,9 +394,9 @@ describe(`Next steps cli text`, () => {
       true /* outputPostCommandMessages */,
       logger,
       workingDirectory,
-      () => Promise.resolve(false) /** doesPackageLockFileExist */,
-      () => Promise.resolve(true) /** doesYarnLockFileExist */,
-      () => Promise.resolve(false) /** doesYarnrcYmlFileExist */,
+      Promise.resolve(false) /** doesPackageLockFileExist */,
+      Promise.resolve(true) /** doesYarnLockFileExist */,
+      Promise.resolve(false) /** doesYarnrcYmlFileExist */,
       () =>
         Promise.resolve(
           some({
@@ -348,7 +404,8 @@ describe(`Next steps cli text`, () => {
               [targetProject]: `0.0.0`,
             },
           })
-        ) /** getPackageJsonContents */
+        ) /** getPackageJsonContents */,
+      () => Promise.resolve(false) /** isYarnBerryUsingNodeModulesLinker */
     );
 
     expect(virtualLoggerLogSpy).not.toHaveBeenCalled();

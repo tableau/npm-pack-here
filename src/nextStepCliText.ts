@@ -13,10 +13,11 @@ export async function maybeOutputNextStepsText(
   outputPostCommandMessages: boolean,
   logger: Logger,
   workingDirectoryAbsolutePath: string,
-  doesPackageLockFileExist: () => Promise<boolean>,
-  doesYarnLockFileExist: () => Promise<boolean>,
-  doesYarnrcYmlFileExist: () => Promise<boolean>,
-  getPackageJsonContents: () => Promise<Option<PackageJsonContent>>
+  doesPackageLockFileExist: Promise<boolean>,
+  doesYarnLockFileExist: Promise<boolean>,
+  doesYarnrcYmlFileExist: Promise<boolean>,
+  getPackageJsonContents: () => Promise<Option<PackageJsonContent>>,
+  isYarnBerryUsingNodeModulesLinker: () => Promise<boolean>
 ): Promise<void> {
   if (maybeDestinationDirectoryToAddDependencyOn === undefined) {
     return;
@@ -33,6 +34,7 @@ export async function maybeOutputNextStepsText(
     doesPackageLockFileExist,
     doesYarnLockFileExist,
     doesYarnrcYmlFileExist,
+    isYarnBerryUsingNodeModulesLinker,
     workingDirectoryAbsolutePath,
     outputPostCommandMessages,
     maybeDestinationDirectoryToAddDependencyOn
@@ -46,9 +48,10 @@ export async function maybeOutputNextStepsText(
 async function outputLocalSetupCommandsIfProjectsNotAlreadyConfiguredAsLocal(
   packageJsonContent: PackageJsonContent,
   targetProjects: TargetProjectsNameAndAbsolutePaths,
-  doesPackageLockFileExist: () => Promise<boolean>,
-  doesYarnLockFileExist: () => Promise<boolean>,
-  doesYarnrcYmlFileExist: () => Promise<boolean>,
+  doesPackageLockFileExist: Promise<boolean>,
+  doesYarnLockFileExist: Promise<boolean>,
+  doesYarnrcYmlFileExist: Promise<boolean>,
+  isYarnBerryUsingNodeModulesLinker: () => Promise<boolean>,
   workingDirectoryAbsolutePath: string,
   outputPostCommandMessages: boolean,
   destinationDirectoryToAddDependencyOn: string
@@ -58,16 +61,19 @@ async function outputLocalSetupCommandsIfProjectsNotAlreadyConfiguredAsLocal(
 
   interface DevDependency {
     type: 'development';
+    projectName: string;
     folderPath: string;
     versionText: string;
   }
   interface Dependency {
     type: 'production';
+    projectName: string;
     folderPath: string;
     versionText: string;
   }
   interface NotADependency {
     type: 'missing';
+    projectName: string;
     folderPath: string;
   }
 
@@ -82,6 +88,7 @@ async function outputLocalSetupCommandsIfProjectsNotAlreadyConfiguredAsLocal(
       const targetDevDependencyIfNotInstalledAlready = maybeDevDependencies.chain(devDependencies =>
         fromNullable(devDependencies[targetProjectName]).map<DevDependency>(versionText => ({
           type: 'development',
+          projectName: targetProjectName,
           folderPath: folderPathWithForwardSlashes,
           versionText: versionText,
         }))
@@ -89,35 +96,44 @@ async function outputLocalSetupCommandsIfProjectsNotAlreadyConfiguredAsLocal(
       const targetDependencyIfNotInstalledAlready = maybeDependencies.chain(dependencies =>
         fromNullable(dependencies[targetProjectName]).map<Dependency>(versionText => ({
           type: 'production',
+          projectName: targetProjectName,
           folderPath: folderPathWithForwardSlashes,
           versionText: versionText,
         }))
       );
       return (targetDependencyIfNotInstalledAlready as Option<Dependency | DevDependency | NotADependency>)
         .alt(targetDevDependencyIfNotInstalledAlready)
-        .getOrElse({ type: 'missing', folderPath: folderPathWithForwardSlashes });
+        .getOrElse({ type: 'missing', projectName: targetProjectName, folderPath: folderPathWithForwardSlashes });
     })
     .filter(dependency => dependency.type === 'missing' || !isTargetConfiguredAsLocalDependency(dependency.versionText));
 
-  const devAndMissingDependencies = targetDependenciesToInstall
-    .filter(dependency => dependency.type === 'development' || dependency.type === 'missing')
-    .map(dependency => dependency.folderPath);
+  const devAndMissingDependencies = targetDependenciesToInstall.filter(
+    dependency => dependency.type === 'development' || dependency.type === 'missing'
+  );
+  const prodDependencies = targetDependenciesToInstall.filter(dependency => dependency.type === 'production') as Dependency[];
 
-  const prodDependencies = targetDependenciesToInstall
-    .filter(dependency => dependency.type === 'production')
-    .map(dependency => dependency.folderPath);
-
-  const devDependencyPaths = some(devAndMissingDependencies).filter(dependencies => dependencies.length > 0);
-  const dependencyPaths = some(prodDependencies).filter(dependencies => dependencies.length > 0);
+  const getPath = (dependency: Dependency | DevDependency | NotADependency) => dependency.folderPath;
+  const devDependencyPaths = some(devAndMissingDependencies.map(getPath)).filter(dependencies => dependencies.length > 0);
+  const dependencyPaths = some(prodDependencies.map(getPath)).filter(dependencies => dependencies.length > 0);
 
   if (dependencyPaths.isNone() && devDependencyPaths.isNone()) {
     return none;
   }
 
-  const hasNpmLock = await doesPackageLockFileExist();
-  const hasYarnLock = await doesYarnLockFileExist();
-  const hasYarnrcYml = await doesYarnrcYmlFileExist();
-  const isUnknown = (!hasNpmLock && !hasYarnLock && !hasYarnrcYml);
+  // package@path dependency references used in yarn 2+: https://yarnpkg.com/cli/add
+  const getReference = (dependency: Dependency | DevDependency | NotADependency) => `${dependency.projectName}@${dependency.folderPath}`;
+  const devDependencyReferences = some(devAndMissingDependencies.map(getReference)).filter(dependencies => dependencies.length > 0);
+  const dependencyReferences = some(prodDependencies.map(getReference)).filter(dependencies => dependencies.length > 0);
+
+  const hasNpmLock = await doesPackageLockFileExist;
+  const hasYarnLock = await doesYarnLockFileExist;
+  const hasYarnrcYml = await doesYarnrcYmlFileExist;
+  const isUnknown = !hasNpmLock && !hasYarnLock && !hasYarnrcYml;
+
+  if (hasYarnrcYml && !(await isYarnBerryUsingNodeModulesLinker())) {
+    return some(`Error: Detected you are using yarn 2+ without the node_modules linker (https://yarnpkg.com/features/pnp).
+npm-pack-here is probably not useful to you.`);
+  }
 
   interface OutputOptions<T> {
     npm?: T;
@@ -130,8 +146,7 @@ async function outputLocalSetupCommandsIfProjectsNotAlreadyConfiguredAsLocal(
 
   let shouldEmit: OutputOptions<boolean> = {
     npm: hasNpmLock || isUnknown,
-//    npmOrYarn: (hasNpmLock && (hasYarnLock || hasYarnrcYml)) || isUnknown,
-    npmOrYarn: (hasNpmLock && hasYarnLock) || isUnknown,
+    npmOrYarn: (hasNpmLock && (hasYarnLock || hasYarnrcYml)) || isUnknown,
     yarnBerry: hasYarnrcYml,
     yarnClassic: (hasYarnLock && !hasYarnrcYml) || isUnknown,
     post: outputPostCommandMessages,
@@ -161,7 +176,7 @@ async function outputLocalSetupCommandsIfProjectsNotAlreadyConfiguredAsLocal(
     `
 
 Set up target projects as local dependencies with `,
-    { npm: 'npm', npmOrYarn: ' or ', yarnClassic: 'yarn' },
+    { npm: 'npm', npmOrYarn: ' or ', yarnClassic: 'yarn', yarnBerry: 'yarn' },
     ` using:
 `,
     {
@@ -171,6 +186,11 @@ Set up target projects as local dependencies with `,
         () => commandForPaths('yarn add', dependencyPaths),
         () => commandForPaths('yarn add -D', devDependencyPaths),
         () => '\tyarn install --check-files\n',
+      ],
+      yarnBerry: [
+        () => commandForPaths('yarn add', dependencyReferences),
+        () => commandForPaths('yarn add -D', devDependencyReferences),
+        () => '\tyarn install\n',
       ],
     },
     `
