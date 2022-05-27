@@ -114,7 +114,12 @@ export const fileSystemOperations: FileSystemReadOperations & FileSystemWriteOpe
     return fsExtra.utimes(itemPath, new Date(Date.now()), times.modifiedTime);
   },
   ensureDirectory: (dirPath: string): Promise<void> => {
-    return fsExtra.ensureDir(dirPath);
+    return (
+      /* TODO: JSFIX could not patch the breaking change:
+      Creating a directory with fs-extra no longer returns the path 
+      Suggested fix: The returned promise no longer includes the path of the new directory */
+      fsExtra.ensureDir(dirPath)
+    );
   },
   ensureSymlink: (symlinkLocationPath: string, symlinkTargetPath: string): Promise<void> => {
     // https://nodejs.org/api/fs.html#fs_fs_symlink_target_path_type_callback
