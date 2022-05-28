@@ -135,22 +135,11 @@ async function outputLocalSetupCommandsIfProjectsNotAlreadyConfiguredAsLocal(
 npm-pack-here is probably not useful to you.`);
   }
 
-  interface OutputOptions<T> {
-    npm?: T;
-    npmOrYarn?: T;
-    post?: T;
-    yarnBerry?: T;
-    yarnClassic?: T;
-    [s: string]: T | undefined;
-  }
-
-  let shouldEmit: OutputOptions<boolean> = {
-    npm: hasNpmLock || isUnknown,
-    npmOrYarn: (hasNpmLock && (hasYarnLock || hasYarnrcYml)) || isUnknown,
-    yarnBerry: hasYarnrcYml,
-    yarnClassic: (hasYarnLock && !hasYarnrcYml) || isUnknown,
-    post: outputPostCommandMessages,
-  };
+  const isNpm = hasNpmLock || isUnknown;
+  const isYarnBerry = hasYarnrcYml;
+  const isYarnClassic = (hasYarnLock && !hasYarnrcYml) || isUnknown;
+  const isYarn = isYarnClassic || isYarnBerry;
+  const isNpmOrYarn = isNpm && isYarn;
 
   const targetProjectPaths = targetProjects.map(targetProject =>
     path.relative(workingDirectoryAbsolutePath, targetProject.targetProjectAbsolutePath)
@@ -168,63 +157,59 @@ npm-pack-here is probably not useful to you.`);
   const targetArg = cliConstants.targetProjectArg;
   const watch = cliConstants.watchCommandArg;
 
-  type StringProducer = () => string;
-  type OutputProvider = string | StringProducer | StringProducer[];
-  type OutputSpecification = OutputProvider | OutputOptions<OutputProvider>;
+  type StringProducer = () => string | string[] | false;
+  type OutputProvider = string | string[] | false | StringProducer;
 
-  const outputSpec: OutputSpecification[] = [
+  const outputSpec: OutputProvider[] = [
     `
 
 Set up target projects as local dependencies with `,
-    { npm: 'npm', npmOrYarn: ' or ', yarnClassic: 'yarn', yarnBerry: 'yarn' },
+    () => isNpm && 'npm',
+    () => isNpmOrYarn && ' or ',
+    () => isYarn && 'yarn',
     ` using:
 `,
-    {
-      npm: [() => commandForPaths('npm install', dependencyPaths), () => commandForPaths('npm install -D', devDependencyPaths)],
-      npmOrYarn: '  and/or\n',
-      yarnClassic: [
-        () => commandForPaths('yarn add', dependencyPaths),
-        () => commandForPaths('yarn add -D', devDependencyPaths),
-        () => '\tyarn install --check-files\n',
+    () => isNpm && [commandForPaths('npm install', dependencyPaths), commandForPaths('npm install -D', devDependencyPaths)],
+    () => isNpmOrYarn && '  and/or\n',
+    () =>
+      isYarnClassic && [
+        commandForPaths('yarn add', dependencyPaths),
+        commandForPaths('yarn add -D', devDependencyPaths),
+        '\tyarn install --check-files\n',
       ],
-      yarnBerry: [
-        () => commandForPaths('yarn add', dependencyReferences),
-        () => commandForPaths('yarn add -D', devDependencyReferences),
-        () => '\tyarn install\n',
+    () =>
+      isYarnBerry && [
+        commandForPaths('yarn add', dependencyReferences),
+        commandForPaths('yarn add -D', devDependencyReferences),
+        '\tyarn install\n',
       ],
-    },
     `
 `,
-    {
-      post: () =>
-        `To get updated changes from target projects, run this command again.
+    () =>
+      outputPostCommandMessages &&
+      `To get updated changes from target projects, run this command again.
 \t${thisCommand} --${targetArg} ${argJoin(targetProjectPaths)}
   or watch continually
 \t${thisCommand} ${watch} --${targetArg} ${argJoin(targetProjectPaths)}
 
 `,
-    },
   ];
 
   // @ts-ignore noImplicitAny - can't typecheck this recursive return type
   // Option<string> | (Option<string> | Option<string>[])[] | ...
-  const evaluator = (output?: OutputProvider | OutputOptions<OutputProvider>) => {
+  const evaluator = (output?: OutputProvider) => {
     if (typeof output === 'string') {
       return some(output);
     } else if (typeof output === 'function') {
       return evaluator(output());
     } else if (Array.isArray(output)) {
       return output.map(o => evaluator(o));
-    } else if (output && typeof output === 'object') {
-      return Object.keys(output)
-        .sort()
-        .map(opt => (shouldEmit[opt] ? evaluator(output[opt]) : none));
     } else {
       return none;
     }
   };
 
-  const maxNesting = 3; // OutputOptions<StringProducer[]>[]
+  const maxNesting = 3; // (() => string[] as StringProducer) []
   const evaluated: Option<string>[] = outputSpec.map(evaluator).flat(maxNesting);
   const stringified: string = evaluated.map(getOrElse(() => '')).join('');
 
