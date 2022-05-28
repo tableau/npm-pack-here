@@ -135,11 +135,11 @@ async function outputLocalSetupCommandsIfProjectsNotAlreadyConfiguredAsLocal(
 npm-pack-here is probably not useful to you.`);
   }
 
-  const isNpm = hasNpmLock || isUnknown;
-  const isYarnBerry = hasYarnrcYml;
-  const isYarnClassic = (hasYarnLock && !hasYarnrcYml) || isUnknown;
-  const isYarn = isYarnClassic || isYarnBerry;
-  const isNpmOrYarn = isNpm && isYarn;
+  const npm: boolean = hasNpmLock || isUnknown;
+  const yarnBerry: boolean = hasYarnrcYml;
+  const yarnClassic: boolean = (hasYarnLock && !hasYarnrcYml) || isUnknown;
+  const yarn: boolean = yarnClassic || yarnBerry;
+  const npmOrYarn: boolean = npm && yarn;
 
   const targetProjectPaths = targetProjects.map(targetProject =>
     path.relative(workingDirectoryAbsolutePath, targetProject.targetProjectAbsolutePath)
@@ -164,21 +164,21 @@ npm-pack-here is probably not useful to you.`);
     `
 
 Set up target projects as local dependencies with `,
-    () => isNpm && 'npm',
-    () => isNpmOrYarn && ' or ',
-    () => isYarn && 'yarn',
+    () => npm && 'npm',
+    () => npmOrYarn && ' or ',
+    () => yarn && 'yarn',
     ` using:
 `,
-    () => isNpm && [commandForPaths('npm install', dependencyPaths), commandForPaths('npm install -D', devDependencyPaths)],
-    () => isNpmOrYarn && '  and/or\n',
+    () => npm && [commandForPaths('npm install', dependencyPaths), commandForPaths('npm install -D', devDependencyPaths)],
+    () => npmOrYarn && '  and/or\n',
     () =>
-      isYarnClassic && [
+      yarnClassic && [
         commandForPaths('yarn add', dependencyPaths),
         commandForPaths('yarn add -D', devDependencyPaths),
         '\tyarn install --check-files\n',
       ],
     () =>
-      isYarnBerry && [
+      yarnBerry && [
         commandForPaths('yarn add', dependencyReferences),
         commandForPaths('yarn add -D', devDependencyReferences),
         '\tyarn install\n',
