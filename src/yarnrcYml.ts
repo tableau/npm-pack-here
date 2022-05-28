@@ -6,8 +6,8 @@ interface YarnrcYml {
 }
 
 const yarnrcYmlFilename = '.yarnrc.yml';
-function getYarnrcYmlContents(): Promise<unknown> {
-  return fileSystemOperations.readYaml(path.resolve(yarnrcYmlFilename));
+function getYarnrcYmlContents(workingDirectory: string): Promise<unknown> {
+  return fileSystemOperations.readYaml(path.resolve(workingDirectory, yarnrcYmlFilename));
 }
 
 export function doesYarnrcYmlFileExist(workingDirectory: string): Promise<boolean> {
@@ -15,13 +15,13 @@ export function doesYarnrcYmlFileExist(workingDirectory: string): Promise<boolea
   return fileSystemOperations.pathExists(absolutePathToDestinationProjectYarnrcYml);
 }
 
-export async function isYarnBerryUsingNodeModulesLinker(hasYarnrcYml: Promise<boolean>): Promise<boolean> {
-  if (!(await hasYarnrcYml)) {
+export async function isYarnBerryUsingNodeModulesLinker(workingDirectory: string, hasYarnrcYml?: Promise<boolean>): Promise<boolean> {
+  if (hasYarnrcYml !== undefined && !(await hasYarnrcYml)) {
     return false;
   }
 
   try {
-    const yarnrc = (await getYarnrcYmlContents()) as YarnrcYml;
+    const yarnrc = (await getYarnrcYmlContents(workingDirectory)) as YarnrcYml;
     return yarnrc.nodeLinker === 'node-modules';
   } catch {
     // assume the default (pnp) if the file fails to load or parse

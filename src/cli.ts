@@ -134,7 +134,7 @@ async function performFirstPackAndCopyToCallForGivenArguments(
     doesYarnLockFileExist(workingDirectory),
     yarnrcYmlExistence,
     () => tryGetProjectPackageJsonContent(workingDirectory),
-    () => isYarnBerryUsingNodeModulesLinker(yarnrcYmlExistence)
+    () => isYarnBerryUsingNodeModulesLinker(workingDirectory, yarnrcYmlExistence)
   );
 
   return { packAndCopyCalls, excludedDestinationPaths, logger };
