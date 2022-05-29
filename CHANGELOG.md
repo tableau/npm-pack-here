@@ -16,6 +16,13 @@ All notable changes to the "npm-pack-here" project will be documented in this fi
 
 - nothing at the moment
 
+## [1.3.0](https://github.com/tableau/npm-pack-here/compare/v1.2.0...v1.3.0) - 2022-??????
+
+### Fixed
+
+- Detects yarn v2+ and prints out the correct next step commands (if using the node-modules linker),
+  or an error (if using plug-and-play or pnpm linkers)
+
 ## [1.2.0](https://github.com/tableau/npm-pack-here/compare/v1.0.0...v1.2.0) - 2020-10-15
 
 ### Fixed
