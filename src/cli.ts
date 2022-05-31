@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 
-import * as path from 'path';
 import * as yargs from 'yargs';
 import {
   executePackageTargetAndCopyToDestinationDirectoriesCalls,
@@ -8,13 +7,14 @@ import {
   watchForChangesToPackagedFilesAndCopyUpdates,
 } from '.';
 import * as cliConstants from './cliConstants';
-import { fileSystemOperations } from './fileSystemOperations';
 import { ExpectedArguments, getArgumentsFromArgv } from './getArgumentsFromArgv';
+import { doesPackageLockFileExist, doesYarnLockFileExist } from './lockFiles';
 import { getLoggerInstance, Logger } from './logger';
 import { maybeOutputNextStepsText } from './nextStepCliText';
 import { tryGetProjectPackageJsonContent } from './packageJson';
 import { PackageTargetAndCopyToDestinationDirectoriesCalls } from './packTargetAndCopyToDestinationDirectories';
 import { prettyPrintError } from './prettyPrintError';
+import { doesYarnrcYmlFileExist, isYarnBerryUsingNodeModulesLinker } from './yarnrcYml';
 
 // Makes the script crash on unhandled rejections instead of silently
 // ignoring them. In the future, promise rejections that are not handled will
@@ -93,16 +93,6 @@ yargs
     }
   ).argv;
 
-function doesPackageLockFileExist(): Promise<boolean> {
-  const absolutePathToDestinationProjectPackageLock = path.resolve('package-lock.json');
-  return fileSystemOperations.pathExists(absolutePathToDestinationProjectPackageLock);
-}
-
-function doesYarnLockFileExist(): Promise<boolean> {
-  const absolutePathToDestinationProjectYarnLock = path.resolve('yarn.lock');
-  return fileSystemOperations.pathExists(absolutePathToDestinationProjectYarnLock);
-}
-
 async function performFirstPackAndCopyToCallForGivenArguments(
   outputPostCommandMessages: boolean,
   argv: ExpectedArguments
@@ -131,15 +121,20 @@ async function performFirstPackAndCopyToCallForGivenArguments(
 
   await executePackageTargetAndCopyToDestinationDirectoriesCalls(excludedDestinationPaths, logger, packAndCopyCalls);
 
+  const workingDirectory = process.cwd();
+  const yarnrcYmlExistence: Promise<boolean> = doesYarnrcYmlFileExist(workingDirectory);
+
   await maybeOutputNextStepsText(
     maybeDestinationDirectoryToAddDependencyOn,
     rootTargets,
     outputPostCommandMessages,
     logger,
-    process.cwd(),
-    doesPackageLockFileExist,
-    doesYarnLockFileExist,
-    () => tryGetProjectPackageJsonContent(path.resolve('./'))
+    workingDirectory,
+    doesPackageLockFileExist(workingDirectory),
+    doesYarnLockFileExist(workingDirectory),
+    yarnrcYmlExistence,
+    () => tryGetProjectPackageJsonContent(workingDirectory),
+    () => isYarnBerryUsingNodeModulesLinker(workingDirectory, yarnrcYmlExistence)
   );
 
   return { packAndCopyCalls, excludedDestinationPaths, logger };

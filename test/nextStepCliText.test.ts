@@ -24,8 +24,9 @@ describe(`Next steps cli text`, () => {
       true /* outputPostCommandMessages */,
       logger,
       workingDirectory,
-      () => Promise.resolve(false) /** doesPackageLockFileExist */,
-      () => Promise.resolve(true) /** doesYarnLockFileExist */,
+      Promise.resolve(false) /** doesPackageLockFileExist */,
+      Promise.resolve(true) /** doesYarnLockFileExist */,
+      Promise.resolve(false) /** doesYarnrcYmlFileExist */,
       () =>
         Promise.resolve(
           some({
@@ -36,11 +37,12 @@ describe(`Next steps cli text`, () => {
               [anotherTargetProject]: '0.0.1',
             },
           })
-        ) /** getPackageJsonContents */
+        ) /** getPackageJsonContents */,
+      () => Promise.resolve(false) /** isYarnBerryUsingNodeModulesLinker */
     );
 
     const outputMatchRegexText =
-      `^\n\nSetup target projects as local dependencies with yarn using:\n` +
+      `^\n\nSet up target projects as local dependencies with yarn using:\n` +
       `\tyarn add file:E:/some_path/widgets\n` +
       `\tyarn add -D file:E:/some_path/anotherTargetProject file:E:/some_path/yetAnotherTargetProject\n` +
       `\tyarn install --check-files\n\n.*`;
@@ -64,8 +66,9 @@ describe(`Next steps cli text`, () => {
       true /* outputPostCommandMessages */,
       logger,
       workingDirectory,
-      () => Promise.resolve(true) /** doesPackageLockFileExist */,
-      () => Promise.resolve(false) /** doesYarnLockFileExist */,
+      Promise.resolve(true) /** doesPackageLockFileExist */,
+      Promise.resolve(false) /** doesYarnLockFileExist */,
+      Promise.resolve(false) /** doesYarnrcYmlFileExist */,
       () =>
         Promise.resolve(
           some({
@@ -73,11 +76,12 @@ describe(`Next steps cli text`, () => {
               [targetProject]: '0.0.0',
             },
           })
-        ) /** getPackageJsonContents */
+        ) /** getPackageJsonContents */,
+      () => Promise.resolve(false) /** isYarnBerryUsingNodeModulesLinker */
     );
 
     const outputMatchRegexText =
-      `^\n\nSetup target projects as local dependencies with npm using:\n` + `\tnpm install file:local_modules\/widgets\n\n`;
+      `^\n\nSet up target projects as local dependencies with npm using:\n` + `\tnpm install file:local_modules\/widgets\n\n`;
     const outputMatch = new RegExp(outputMatchRegexText);
 
     expect(virtualLoggerLogSpy).toHaveBeenCalled();
@@ -86,7 +90,7 @@ describe(`Next steps cli text`, () => {
     done();
   });
 
-  it(`should output yarn and npm commands to run if target project is not setup as a local dependency`, async done => {
+  it(`should output yarn and npm commands to run if both yarn & npm locks exist and target project is not setup as a local dependency`, async done => {
     const workingDirectory = 'destination';
     const targetProject = 'widgets';
     const logger = getVirtualLoggerInstance();
@@ -98,8 +102,9 @@ describe(`Next steps cli text`, () => {
       true /* outputPostCommandMessages */,
       logger,
       workingDirectory,
-      () => Promise.resolve(true) /** doesPackageLockFileExist */,
-      () => Promise.resolve(true) /** doesYarnLockFileExist */,
+      Promise.resolve(true) /** doesPackageLockFileExist */,
+      Promise.resolve(true) /** doesYarnLockFileExist */,
+      Promise.resolve(false) /** doesYarnrcYmlFileExist */,
       () =>
         Promise.resolve(
           some({
@@ -107,15 +112,56 @@ describe(`Next steps cli text`, () => {
               [targetProject]: '0.0.0',
             },
           })
-        ) /** getPackageJsonContents */
+        ) /** getPackageJsonContents */,
+      () => Promise.resolve(false) /** isYarnBerryUsingNodeModulesLinker */
     );
 
     const outputMatchRegexText =
-      `^\n\nSetup target projects as local dependencies with yarn and npm using:\n` +
-      `\tyarn add file:local_modules\/widgets\n` +
-      `\tyarn install --check-files\n` +
+      `^\n\nSet up target projects as local dependencies with npm or yarn using:\n` +
+      `\tnpm install file:local_modules\/widgets\n` +
       `  and\/or\n` +
-      `\tnpm install file:local_modules\/widgets\n\n.*`;
+      `\tyarn add file:local_modules\/widgets\n` +
+      `\tyarn install --check-files\n\n.*`;
+    const outputMatch = new RegExp(outputMatchRegexText);
+
+    expect(virtualLoggerLogSpy).toHaveBeenCalled();
+    expect(logger.lastMessage()).toMatch(outputMatch);
+
+    done();
+  });
+
+  it(`should output yarn and npm commands to run if neither yarn nor npm locks exist and target project is not setup as a local dependency`, async done => {
+    const workingDirectory = 'destination';
+    const targetProject = 'widgets';
+    const logger = getVirtualLoggerInstance();
+    const virtualLoggerLogSpy = spyOn(logger, 'log').and.callThrough();
+
+    await maybeOutputNextStepsText(
+      './local_modules' /* maybeDestinationDirectoryToAddDependencyOn */,
+      [{ targetProjectName: targetProject, targetProjectAbsolutePath: targetProject }],
+      true /* outputPostCommandMessages */,
+      logger,
+      workingDirectory,
+      Promise.resolve(false) /** doesPackageLockFileExist */,
+      Promise.resolve(false) /** doesYarnLockFileExist */,
+      Promise.resolve(false) /** doesYarnrcYmlFileExist */,
+      () =>
+        Promise.resolve(
+          some({
+            dependencies: {
+              [targetProject]: '0.0.0',
+            },
+          })
+        ) /** getPackageJsonContents */,
+      () => Promise.resolve(false) /** isYarnBerryUsingNodeModulesLinker */
+    );
+
+    const outputMatchRegexText =
+      `^\n\nSet up target projects as local dependencies with npm or yarn using:\n` +
+      `\tnpm install file:local_modules\/widgets\n` +
+      `  and\/or\n` +
+      `\tyarn add file:local_modules\/widgets\n` +
+      `\tyarn install --check-files\n\n.*`;
     const outputMatch = new RegExp(outputMatchRegexText);
 
     expect(virtualLoggerLogSpy).toHaveBeenCalled();
@@ -142,8 +188,9 @@ describe(`Next steps cli text`, () => {
       true /* outputPostCommandMessages */,
       logger,
       workingDirectory,
-      () => Promise.resolve(false) /** doesPackageLockFileExist */,
-      () => Promise.resolve(true) /** doesYarnLockFileExist */,
+      Promise.resolve(false) /** doesPackageLockFileExist */,
+      Promise.resolve(true) /** doesYarnLockFileExist */,
+      Promise.resolve(false) /** doesYarnrcYmlFileExist */,
       () =>
         Promise.resolve(
           some({
@@ -152,7 +199,8 @@ describe(`Next steps cli text`, () => {
               [anotherTargetProject]: '0.0.0',
             },
           })
-        ) /** getPackageJsonContents */
+        ) /** getPackageJsonContents */,
+      () => Promise.resolve(false) /** isYarnBerryUsingNodeModulesLinker */
     );
 
     const regExpEscape = (text: string) => {
@@ -166,7 +214,7 @@ describe(`Next steps cli text`, () => {
       `To get updated changes from target projects, run this command again.\n` +
       `\tnpm-pack-here --target ${escapedTargetProjectPath} ${escapedAnotherTargetProjectPath}\n` +
       `  or watch continually\n` +
-      `\tnpm-pack-here watch --target ${escapedTargetProjectPath} ${escapedAnotherTargetProjectPath}\n$`;
+      `\tnpm-pack-here watch --target ${escapedTargetProjectPath} ${escapedAnotherTargetProjectPath}\n\n$`;
     const outputMatch = new RegExp(outputMatchRegexText);
 
     expect(virtualLoggerLogSpy).toHaveBeenCalled();
@@ -187,8 +235,9 @@ describe(`Next steps cli text`, () => {
       false /* outputPostCommandMessages */,
       logger,
       workingDirectory,
-      () => Promise.resolve(false) /** doesPackageLockFileExist */,
-      () => Promise.resolve(true) /** doesYarnLockFileExist */,
+      Promise.resolve(false) /** doesPackageLockFileExist */,
+      Promise.resolve(true) /** doesYarnLockFileExist */,
+      Promise.resolve(false) /** doesYarnrcYmlFileExist */,
       () =>
         Promise.resolve(
           some({
@@ -196,7 +245,8 @@ describe(`Next steps cli text`, () => {
               [targetProject]: '0.0.0',
             },
           })
-        ) /** getPackageJsonContents */
+        ) /** getPackageJsonContents */,
+      () => Promise.resolve(false) /** isYarnBerryUsingNodeModulesLinker */
     );
 
     const outputMatchRegexText = `To get updated changes from target projects, run this command again.\n`;
@@ -209,12 +259,12 @@ describe(`Next steps cli text`, () => {
     done();
   });
 
-  it(`should not output anything if project setup as a local dependency`, async done => {
+  it(`should output an error if yarn 2+ is detected without node_modules linker`, async done => {
     const workingDirectory = 'destination';
     const targetProject = 'widgets';
     const anotherTargetProject = 'anotherTargetProject';
     const logger = getVirtualLoggerInstance();
-    const virtualLoggerLogSpy = spyOn(logger, 'log');
+    const virtualLoggerLogSpy = spyOn(logger, 'log').and.callThrough();
 
     await maybeOutputNextStepsText(
       './local_modules' /* maybeDestinationDirectoryToAddDependencyOn */,
@@ -225,8 +275,94 @@ describe(`Next steps cli text`, () => {
       true /* outputPostCommandMessages */,
       logger,
       workingDirectory,
-      () => Promise.resolve(false) /** doesPackageLockFileExist */,
-      () => Promise.resolve(true) /** doesYarnLockFileExist */,
+      Promise.resolve(false) /** doesPackageLockFileExist */,
+      Promise.resolve(true) /** doesYarnLockFileExist */,
+      Promise.resolve(true) /** doesYarnrcYmlFileExist */,
+      () =>
+        Promise.resolve(
+          some({
+            dependencies: {
+              [targetProject]: '0.0.0',
+              [anotherTargetProject]: '0.0.0',
+            },
+          })
+        ) /** getPackageJsonContents */,
+      () => Promise.resolve(false) /** isYarnBerryUsingNodeModulesLinker */
+    );
+
+    expect(virtualLoggerLogSpy).toHaveBeenCalled();
+    expect(logger.lastMessage()).toMatch('Error: Detected you are using yarn 2+');
+
+    done();
+  });
+
+  it(`should output yarn commands if yarn 2+ is detected`, async done => {
+    const workingDirectory = 'destination';
+    const targetProject = 'widgets';
+    const anotherTargetProject = 'anotherTargetProject';
+    const yetAnotherTargetProject = 'yetAnotherTargetProject';
+    const logger = getVirtualLoggerInstance();
+    const virtualLoggerLogSpy = spyOn(logger, 'log').and.callThrough();
+
+    await maybeOutputNextStepsText(
+      '/tmp/build' /* maybeDestinationDirectoryToAddDependencyOn */,
+      [
+        { targetProjectName: targetProject, targetProjectAbsolutePath: targetProject },
+        { targetProjectName: anotherTargetProject, targetProjectAbsolutePath: anotherTargetProject },
+        { targetProjectName: yetAnotherTargetProject, targetProjectAbsolutePath: yetAnotherTargetProject },
+      ],
+      true /* outputPostCommandMessages */,
+      logger,
+      workingDirectory,
+      Promise.resolve(false) /** doesPackageLockFileExist */,
+      Promise.resolve(true) /** doesYarnLockFileExist */,
+      Promise.resolve(true) /** doesYarnrcYmlFileExist */,
+      () =>
+        Promise.resolve(
+          some({
+            dependencies: {
+              [targetProject]: '0.0.0',
+            },
+            devDependencies: {
+              [anotherTargetProject]: '0.0.0',
+            },
+          })
+        ) /** getPackageJsonContents */,
+      () => Promise.resolve(true) /** isYarnBerryUsingNodeModulesLinker */
+    );
+
+    const outputMatchRegexText =
+      `^\n\nSet up target projects as local dependencies with yarn using:\n` +
+      `\tyarn add widgets@file:/tmp/build/widgets\n` +
+      `\tyarn add -D anotherTargetProject@file:/tmp/build/anotherTargetProject yetAnotherTargetProject@file:/tmp/build/yetAnotherTargetProject\n` +
+      `\tyarn install\n\n.*`;
+    const outputMatch = new RegExp(outputMatchRegexText);
+
+    expect(virtualLoggerLogSpy).toHaveBeenCalled();
+    expect(logger.lastMessage()).toMatch(outputMatch);
+
+    done();
+  });
+
+  it(`should not output anything if project setup as a local dependency`, async done => {
+    const workingDirectory = 'destination';
+    const targetProject = 'widgets';
+    const anotherTargetProject = 'anotherTargetProject';
+    const logger = getVirtualLoggerInstance();
+    const virtualLoggerLogSpy = spyOn(logger, 'log').and.callThrough();
+
+    await maybeOutputNextStepsText(
+      './local_modules' /* maybeDestinationDirectoryToAddDependencyOn */,
+      [
+        { targetProjectName: targetProject, targetProjectAbsolutePath: targetProject },
+        { targetProjectName: anotherTargetProject, targetProjectAbsolutePath: anotherTargetProject },
+      ],
+      true /* outputPostCommandMessages */,
+      logger,
+      workingDirectory,
+      Promise.resolve(false) /** doesPackageLockFileExist */,
+      Promise.resolve(true) /** doesYarnLockFileExist */,
+      Promise.resolve(false) /** doesYarnrcYmlFileExist */,
       () =>
         Promise.resolve(
           some({
@@ -237,7 +373,8 @@ describe(`Next steps cli text`, () => {
               [anotherTargetProject]: `file:${anotherTargetProject}`,
             },
           })
-        ) /** getPackageJsonContents */
+        ) /** getPackageJsonContents */,
+      () => Promise.resolve(false) /** isYarnBerryUsingNodeModulesLinker */
     );
 
     expect(virtualLoggerLogSpy).not.toHaveBeenCalled();
@@ -249,7 +386,7 @@ describe(`Next steps cli text`, () => {
     const workingDirectory = 'destination';
     const targetProject = 'widgets';
     const logger = getVirtualLoggerInstance();
-    const virtualLoggerLogSpy = spyOn(logger, 'log');
+    const virtualLoggerLogSpy = spyOn(logger, 'log').and.callThrough();
 
     await maybeOutputNextStepsText(
       undefined /* maybeDestinationDirectoryToAddDependencyOn */,
@@ -257,8 +394,9 @@ describe(`Next steps cli text`, () => {
       true /* outputPostCommandMessages */,
       logger,
       workingDirectory,
-      () => Promise.resolve(false) /** doesPackageLockFileExist */,
-      () => Promise.resolve(true) /** doesYarnLockFileExist */,
+      Promise.resolve(false) /** doesPackageLockFileExist */,
+      Promise.resolve(true) /** doesYarnLockFileExist */,
+      Promise.resolve(false) /** doesYarnrcYmlFileExist */,
       () =>
         Promise.resolve(
           some({
@@ -266,7 +404,8 @@ describe(`Next steps cli text`, () => {
               [targetProject]: `0.0.0`,
             },
           })
-        ) /** getPackageJsonContents */
+        ) /** getPackageJsonContents */,
+      () => Promise.resolve(false) /** isYarnBerryUsingNodeModulesLinker */
     );
 
     expect(virtualLoggerLogSpy).not.toHaveBeenCalled();

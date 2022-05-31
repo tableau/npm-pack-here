@@ -77,7 +77,7 @@ multi-level local dependency chains (C depends on B which depends on A).
 ## Demo
 
 Imagine that you have a `projectB` that has a dependency on a `projectA` (in this example we are
-assuming yarn is being used as the package management tool).
+assuming yarn v1 is being used as the package management tool).
 
 In the root directory of `projectB`, run the following:
 
@@ -97,7 +97,7 @@ Copying packed files from - [path-to-projectA]
 [success] Done copying packed files from - [path-to-projectA]
 
 
-Setup target projects as local dependencies with yarn using:
+Set up target projects as local dependencies with yarn using:
         yarn add file:local_modules/[name-of-projectA]
         yarn install --check-files
 
@@ -139,7 +139,10 @@ Copying packed files from - [path-to-projectA]
 To work with npm-pack-here, you need the following:
 
 * At least the most recent LTS version of node
-* Optionally the latest release of yarn (if using it as your package management tool)
+* If using yarn,
+   * a recent release of yarn v1, or
+   * a recent release of yarn v2+ using the [`node-modules` linker](https://yarnpkg.com/configuration/yarnrc#nodeLinker).
+     npm-pack-here is probably not useful with the other linkers.
 
 ### Installation
 

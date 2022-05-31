@@ -1,4 +1,4 @@
-import { fromNullable, none, Option, some } from 'fp-ts/lib/Option';
+import { fromNullable, getOrElse, none, Option, some } from 'fp-ts/lib/Option';
 import * as path from 'path';
 import * as cliConstants from './cliConstants';
 import { Logger } from './logger';
@@ -13,9 +13,11 @@ export async function maybeOutputNextStepsText(
   outputPostCommandMessages: boolean,
   logger: Logger,
   workingDirectoryAbsolutePath: string,
-  doesPackageLockFileExist: () => Promise<boolean>,
-  doesYarnLockFileExist: () => Promise<boolean>,
-  getPackageJsonContents: () => Promise<Option<PackageJsonContent>>
+  doesPackageLockFileExist: Promise<boolean>,
+  doesYarnLockFileExist: Promise<boolean>,
+  doesYarnrcYmlFileExist: Promise<boolean>,
+  getPackageJsonContents: () => Promise<Option<PackageJsonContent>>,
+  isYarnBerryUsingNodeModulesLinker: () => Promise<boolean>
 ): Promise<void> {
   if (maybeDestinationDirectoryToAddDependencyOn === undefined) {
     return;
@@ -31,6 +33,8 @@ export async function maybeOutputNextStepsText(
     targetProjects,
     doesPackageLockFileExist,
     doesYarnLockFileExist,
+    doesYarnrcYmlFileExist,
+    isYarnBerryUsingNodeModulesLinker,
     workingDirectoryAbsolutePath,
     outputPostCommandMessages,
     maybeDestinationDirectoryToAddDependencyOn
@@ -44,8 +48,10 @@ export async function maybeOutputNextStepsText(
 async function outputLocalSetupCommandsIfProjectsNotAlreadyConfiguredAsLocal(
   packageJsonContent: PackageJsonContent,
   targetProjects: TargetProjectsNameAndAbsolutePaths,
-  doesPackageLockFileExist: () => Promise<boolean>,
-  doesYarnLockFileExist: () => Promise<boolean>,
+  doesPackageLockFileExist: Promise<boolean>,
+  doesYarnLockFileExist: Promise<boolean>,
+  doesYarnrcYmlFileExist: Promise<boolean>,
+  isYarnBerryUsingNodeModulesLinker: () => Promise<boolean>,
   workingDirectoryAbsolutePath: string,
   outputPostCommandMessages: boolean,
   destinationDirectoryToAddDependencyOn: string
@@ -55,16 +61,19 @@ async function outputLocalSetupCommandsIfProjectsNotAlreadyConfiguredAsLocal(
 
   interface DevDependency {
     type: 'development';
+    projectName: string;
     folderPath: string;
     versionText: string;
   }
   interface Dependency {
     type: 'production';
+    projectName: string;
     folderPath: string;
     versionText: string;
   }
   interface NotADependency {
     type: 'missing';
+    projectName: string;
     folderPath: string;
   }
 
@@ -79,6 +88,7 @@ async function outputLocalSetupCommandsIfProjectsNotAlreadyConfiguredAsLocal(
       const targetDevDependencyIfNotInstalledAlready = maybeDevDependencies.chain(devDependencies =>
         fromNullable(devDependencies[targetProjectName]).map<DevDependency>(versionText => ({
           type: 'development',
+          projectName: targetProjectName,
           folderPath: folderPathWithForwardSlashes,
           versionText: versionText,
         }))
@@ -86,90 +96,122 @@ async function outputLocalSetupCommandsIfProjectsNotAlreadyConfiguredAsLocal(
       const targetDependencyIfNotInstalledAlready = maybeDependencies.chain(dependencies =>
         fromNullable(dependencies[targetProjectName]).map<Dependency>(versionText => ({
           type: 'production',
+          projectName: targetProjectName,
           folderPath: folderPathWithForwardSlashes,
           versionText: versionText,
         }))
       );
       return (targetDependencyIfNotInstalledAlready as Option<Dependency | DevDependency | NotADependency>)
         .alt(targetDevDependencyIfNotInstalledAlready)
-        .getOrElse({ type: 'missing', folderPath: folderPathWithForwardSlashes });
+        .getOrElse({ type: 'missing', projectName: targetProjectName, folderPath: folderPathWithForwardSlashes });
     })
     .filter(dependency => dependency.type === 'missing' || !isTargetConfiguredAsLocalDependency(dependency.versionText));
 
-  const devAndMissingDependencies = targetDependenciesToInstall
-    .filter(dependency => dependency.type === 'development' || dependency.type === 'missing')
-    .map(dependency => dependency.folderPath);
+  const devAndMissingDependencies = targetDependenciesToInstall.filter(
+    dependency => dependency.type === 'development' || dependency.type === 'missing'
+  );
+  const prodDependencies = targetDependenciesToInstall.filter(dependency => dependency.type === 'production') as Dependency[];
 
-  const prodDependencies = targetDependenciesToInstall
-    .filter(dependency => dependency.type === 'production')
-    .map(dependency => dependency.folderPath);
+  const getPath = (dependency: Dependency | DevDependency | NotADependency) => dependency.folderPath;
+  const devDependencyPaths = some(devAndMissingDependencies.map(getPath)).filter(dependencies => dependencies.length > 0);
+  const dependencyPaths = some(prodDependencies.map(getPath)).filter(dependencies => dependencies.length > 0);
 
-  const devAddCommands = some(devAndMissingDependencies)
-    .filter(dependencies => dependencies.length > 0)
-    .map(dependencies => ({ yarn: [`yarn add -D ${dependencies.join(' ')}`], npm: [`npm install -D ${dependencies.join(' ')}`] }));
+  if (dependencyPaths.isNone() && devDependencyPaths.isNone()) {
+    return none;
+  }
 
-  const prodAddCommands = some(prodDependencies)
-    .filter(dependencies => dependencies.length > 0)
-    .map(dependencies => ({ yarn: [`yarn add ${dependencies.join(' ')}`], npm: [`npm install ${dependencies.join(' ')}`] }));
+  // package@path dependency references used in yarn 2+: https://yarnpkg.com/cli/add
+  const getReference = (dependency: Dependency | DevDependency | NotADependency) => `${dependency.projectName}@${dependency.folderPath}`;
+  const devDependencyReferences = some(devAndMissingDependencies.map(getReference)).filter(dependencies => dependencies.length > 0);
+  const dependencyReferences = some(prodDependencies.map(getReference)).filter(dependencies => dependencies.length > 0);
 
-  const addCommands = prodAddCommands
-    .fold(devAddCommands, prodCommands =>
-      some(
-        devAddCommands.fold(prodCommands, devCommands => ({
-          npm: prodCommands.npm.concat(devCommands.npm),
-          yarn: prodCommands.yarn.concat(devCommands.yarn),
-        }))
-      )
-    )
-    .map(({ npm, yarn }) => ({ npm, yarn: yarn.concat(['yarn install --check-files']) }));
-  const maybeFilesExist = await addCommands.fold<
-    Promise<
-      Option<{
-        yarnLockPresent: boolean;
-        packageLockPresent: boolean;
-      }>
-    >
-  >(Promise.resolve(none), async _ => {
-    const yarnLockPresent = await doesYarnLockFileExist();
-    const packageLockPresent = await doesPackageLockFileExist();
-    return some({ yarnLockPresent, packageLockPresent });
-  });
+  const hasNpmLock = await doesPackageLockFileExist;
+  const hasYarnLock = await doesYarnLockFileExist;
+  const hasYarnrcYml = await doesYarnrcYmlFileExist;
+  const isUnknown = !hasNpmLock && !hasYarnLock && !hasYarnrcYml;
 
-  const yarnCommandsIfYarnLockPresent = addCommands.chain(({ yarn }) =>
-    maybeFilesExist.chain(({ yarnLockPresent }) => (yarnLockPresent ? some(yarn) : none))
+  if (hasYarnrcYml && !(await isYarnBerryUsingNodeModulesLinker())) {
+    return some(`Error: Detected you are using yarn 2+ without the node_modules linker (https://yarnpkg.com/features/pnp).
+npm-pack-here is probably not useful to you.`);
+  }
+
+  const npm: boolean = hasNpmLock || isUnknown;
+  const yarnBerry: boolean = hasYarnrcYml;
+  const yarnClassic: boolean = (hasYarnLock && !hasYarnrcYml) || isUnknown;
+  const yarn: boolean = yarnClassic || yarnBerry;
+  const npmOrYarn: boolean = npm && yarn;
+
+  const targetProjectPaths = targetProjects.map(targetProject =>
+    path.relative(workingDirectoryAbsolutePath, targetProject.targetProjectAbsolutePath)
   );
 
-  const npmCommandsIfPackageLockPresent = addCommands.chain(({ npm }) =>
-    maybeFilesExist.chain(({ packageLockPresent }) => (packageLockPresent ? some(npm) : none))
-  );
-
-  const getCommandHeaderString = (yarnOrNpm: 'yarn' | 'npm' | 'both') => {
-    const context = yarnOrNpm === 'both' ? 'yarn and npm' : yarnOrNpm;
-    return `\n\nSetup target projects as local dependencies with ${context} using:`;
+  const argJoin = (arg: string[]) => {
+    return arg.join(' ');
   };
 
-  const commandsToRun = yarnCommandsIfYarnLockPresent.fold(
-    npmCommandsIfPackageLockPresent.map(npmCommandsToRun => {
-      return `${getCommandHeaderString('npm')}\n\t${npmCommandsToRun.join('\n\t')}`;
-    }),
-    yarnCommandsToRun => {
-      return some(
-        npmCommandsIfPackageLockPresent.fold(`${getCommandHeaderString('yarn')}\n\t${yarnCommandsToRun.join('\n\t')}`, npmCommandsToRun => {
-          return `${getCommandHeaderString('both')}\n\t${yarnCommandsToRun.join('\n\t')}\n  and/or\n\t${npmCommandsToRun.join('\n\t')}`;
-        })
-      );
-    }
-  );
+  const commandForPaths = (command: string, maybePaths: Option<string[]>): string => {
+    return maybePaths.fold('', paths => `\t${command} ${argJoin(paths)}\n`);
+  };
 
-  return commandsToRun.map(commandsText => {
-    const targetArgumentValue = targetProjects.map(targetProject =>
-      path.relative(workingDirectoryAbsolutePath, targetProject.targetProjectAbsolutePath)
-    );
-    const commandText = cliConstants.commandName;
-    const targetText = `--${cliConstants.targetProjectArg} ${targetArgumentValue.join(' ')}`;
-    return outputPostCommandMessages
-      ? `${commandsText}\n\nTo get updated changes from target projects, run this command again.` +
-          `\n\t${commandText} ${targetText}\n  or watch continually\n\t${commandText} ${cliConstants.watchCommandArg} ${targetText}\n`
-      : `${commandsText}\n\n`;
-  });
+  const thisCommand = cliConstants.commandName;
+  const targetArg = cliConstants.targetProjectArg;
+  const watch = cliConstants.watchCommandArg;
+
+  type StringProducer = () => string | string[] | false;
+  type OutputProvider = string | string[] | false | StringProducer;
+
+  const outputSpec: OutputProvider[] = [
+    `
+
+Set up target projects as local dependencies with `,
+    () => npm && 'npm',
+    () => npmOrYarn && ' or ',
+    () => yarn && 'yarn',
+    ` using:
+`,
+    () => npm && [commandForPaths('npm install', dependencyPaths), commandForPaths('npm install -D', devDependencyPaths)],
+    () => npmOrYarn && '  and/or\n',
+    () =>
+      yarnClassic && [
+        commandForPaths('yarn add', dependencyPaths),
+        commandForPaths('yarn add -D', devDependencyPaths),
+        '\tyarn install --check-files\n',
+      ],
+    () =>
+      yarnBerry && [
+        commandForPaths('yarn add', dependencyReferences),
+        commandForPaths('yarn add -D', devDependencyReferences),
+        '\tyarn install\n',
+      ],
+    `
+`,
+    () =>
+      outputPostCommandMessages &&
+      `To get updated changes from target projects, run this command again.
+\t${thisCommand} --${targetArg} ${argJoin(targetProjectPaths)}
+  or watch continually
+\t${thisCommand} ${watch} --${targetArg} ${argJoin(targetProjectPaths)}
+
+`,
+  ];
+
+  // @ts-ignore noImplicitAny - can't typecheck this recursive return type
+  // Option<string> | (Option<string> | Option<string>[])[] | ...
+  const evaluator = (output?: OutputProvider) => {
+    if (typeof output === 'string') {
+      return some(output);
+    } else if (typeof output === 'function') {
+      return evaluator(output());
+    } else if (Array.isArray(output)) {
+      return output.map(o => evaluator(o));
+    } else {
+      return none;
+    }
+  };
+
+  const maxNesting = 3; // (() => string[] as StringProducer) []
+  const evaluated: Option<string>[] = outputSpec.map(evaluator).flat(maxNesting);
+  const stringified: string = evaluated.map(getOrElse(() => '')).join('');
+
+  return some(stringified);
 }
