@@ -16,7 +16,7 @@ All notable changes to the "npm-pack-here" project will be documented in this fi
 
 - nothing at the moment
 
-## [1.3.0](https://github.com/tableau/npm-pack-here/compare/v1.2.0...v1.3.0) - 2022-??????
+## [1.3.0](https://github.com/tableau/npm-pack-here/compare/v1.2.0...v1.3.0) - 2022-05-31
 
 ### Fixed
 
