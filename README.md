@@ -319,8 +319,9 @@ target dependencies are also packed into the working directory's `node_modules` 
 As of Webpack v5 the default `node_modules` caching settings will likely cause issues when attempting
 to do local testing with `npm-pack-here`. The problem is the
 [`snapshot.managedPaths`](https://webpack.js.org/configuration/other-options/#managedpaths) default
-value. It appears like webpack’s caching does not detect any changes to `file:` dependencies as different.
-To resolve this, remove the `node_modules` default value`snapshot.managedPaths = []`.
+value includes the `node_modules` directory. With this default setting, webpack’s caching does not
+seem to detect any changes to `file:` dependencies as different. To resolve this, add
+`snapshot.managedPaths = []` to your configuration to override the default value.
 
 Another common source of trouble is the
 [`watchOptions.ignored`](https://webpack.js.org/configuration/watch/#watchoptionsignored) setting. If the
