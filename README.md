@@ -312,6 +312,24 @@ algorithm](https://nodejs.org/api/modules.html#modules_require_resolve_request_o
 the correct `node_modules` directories are updated. With this argument set, all locally specified
 target dependencies are also packed into the working directory's `node_modules` directory.
 
+## Troubleshooting
+
+### Npm-pack-here runs but webpack (or other bundler) doesn’t detect any changes
+
+As of Webpack v5 the default `node_modules` caching settings will likely cause issues when attempting
+to do local testing with `npm-pack-here`. The problem is the
+[`snapshot.managedPaths`](https://webpack.js.org/configuration/other-options/#managedpaths) default
+value. It appears like webpack’s caching does not detect any changes to `file:` dependencies as different.
+To resolve this, remove the `node_modules` default value`snapshot.managedPaths = []`.
+
+Another common source of trouble is the
+[`watchOptions.ignored`](https://webpack.js.org/configuration/watch/#watchoptionsignored) setting. If the
+project’s webpack configuration has added `node_modules` as ignored then any changes to project’s
+dependencies will require a restart of webpack’s dev mode.
+
+Other bundlers are known to have similar problems, if you encounter them let us know about it so we can
+document it here as well.
+
 ## Support
 
 If you encounter any surprising or unexpected behavior using this tool or have any questions, please
