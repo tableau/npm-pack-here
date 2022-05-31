@@ -1,3 +1,4 @@
+import 'array-flat-polyfill';
 import { fromNullable, getOrElse, none, Option, some } from 'fp-ts/lib/Option';
 import * as path from 'path';
 import * as cliConstants from './cliConstants';
