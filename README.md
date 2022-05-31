@@ -316,7 +316,7 @@ target dependencies are also packed into the working directory's `node_modules` 
 
 ### Npm-pack-here runs but webpack (or other bundler) doesn’t detect any changes
 
-As of Webpack v5 the default `node_modules` caching settings will likely cause issues when attempting
+As of Webpack v5 the default caching settings will likely cause issues when attempting
 to do local testing with `npm-pack-here`. The problem is the
 [`snapshot.managedPaths`](https://webpack.js.org/configuration/other-options/#managedpaths) default
 value includes the `node_modules` directory. With this default setting, webpack’s caching does not
