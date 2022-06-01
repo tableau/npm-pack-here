@@ -22,6 +22,7 @@ All notable changes to the "npm-pack-here" project will be documented in this fi
 
 - Detects yarn v2+ and prints out the correct next step commands (if using the node-modules linker),
   or an error (if using plug-and-play or pnpm linkers)
+- Added support for node v10 which lacks `Array.prototype.flat()`
 
 ## [1.2.0](https://github.com/tableau/npm-pack-here/compare/v1.0.0...v1.2.0) - 2020-10-15
 
